@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "capiumbrowser"
+version = "0.1.0"
+description = "Drop-in stealth browser SDK on top of Playwright (Capium Chromium)."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [{ name = "Capzy" }]
+keywords = ["playwright", "stealth", "chromium", "browser", "fingerprint", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Software Development :: Testing",
+]
+# Playwright is a normal dependency so you update the engine independently:
+#   pip install -U playwright
+dependencies = [
+    "playwright>=1.40",
+]
+
+[project.urls]
+Homepage = "https://capiumbrowser.com"
+Documentation = "https://docs.capiumbrowser.com"
+
+[project.optional-dependencies]
+# Some deployments still want Patchright available; not required by capiumbrowser itself.
+patchright = ["patchright>=1.40"]
+
+[project.scripts]
+capiumbrowser = "capiumbrowser.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["capiumbrowser*"]
+
+[tool.setuptools.package-data]
+capiumbrowser = ["channels.json"]

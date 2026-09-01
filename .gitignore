@@ -1,0 +1,20 @@
+# capiumbrowser SDK — standalone repo ignores
+__pycache__/
+*.py[cod]
+py.typed
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+.venv/
+venv/
+.env
+# release-key / local config must never ship in the public repo
+release.local.json
+*.local.json
+# extracted browser distros the SDK downloads at runtime (not source)
+capium-*/
+chromium-v*/
+*.tar.gz
