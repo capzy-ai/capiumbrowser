@@ -184,7 +184,12 @@ def _remove_installs(root):
 def _download(url, headers, dest, version, tag):
     """Stream `url` to `dest`, mapping transport failures to typed errors and verifying the
     server's X-Capzy-SHA256 against the bytes. Returns the hex sha256."""
-    req = urllib.request.Request(url, headers=headers or {})
+    # The download server sits behind Cloudflare, which WAF-blocks the default "Python-urllib/x"
+    # User-Agent as a bot (403). Send a browser UA unless the caller set one.
+    hdrs = dict(headers or {})
+    hdrs.setdefault("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                                  "(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36")
+    req = urllib.request.Request(url, headers=hdrs)
     h = hashlib.sha256()
     expected = None
     try:

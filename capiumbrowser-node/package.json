@@ -1,0 +1,67 @@
+{
+  "name": "capiumbrowser",
+  "version": "0.1.1",
+  "description": "Drop-in stealth browser SDK on top of Playwright or Puppeteer (Capium Chromium).",
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Capzy (https://capzy.ai)",
+  "homepage": "https://capiumbrowser.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/capzy-ai/capiumbrowser.git",
+    "directory": "capiumbrowser-node"
+  },
+  "bugs": {
+    "url": "https://github.com/capzy-ai/capiumbrowser/issues"
+  },
+  "keywords": [
+    "playwright",
+    "puppeteer",
+    "stealth",
+    "chromium",
+    "browser",
+    "fingerprint",
+    "automation"
+  ],
+  "main": "index.js",
+  "types": "index.d.ts",
+  "bin": {
+    "capiumbrowser": "bin/capiumbrowser.js"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./playwright": "./playwright.js",
+    "./puppeteer": "./puppeteer.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "playwright.js",
+    "puppeteer.js",
+    "bin/",
+    "lib/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "tar": "^7.4.0"
+  },
+  "peerDependencies": {
+    "playwright-core": ">=1.40.0",
+    "puppeteer-core": ">=21.0.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright-core": {
+      "optional": true
+    },
+    "puppeteer-core": {
+      "optional": true
+    }
+  }
+}

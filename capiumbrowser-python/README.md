@@ -1,13 +1,11 @@
 <p align="center">
-  <img src="assets/capzy-banner.png" alt="Capium — stealth Chromium for Playwright" width="820">
+  <img src="https://raw.githubusercontent.com/capzy-ai/capiumbrowser/main/assets/capzy-banner.png" alt="Capium — stealth Chromium for Playwright" width="820">
 </p>
 
 <p align="center">
   <a href="https://pypi.org/project/capiumbrowser/"><img src="https://img.shields.io/pypi/v/capiumbrowser?color=2b8a3e" alt="PyPI"></a>
-  <a href="https://www.npmjs.com/package/capiumbrowser"><img src="https://img.shields.io/npm/v/capiumbrowser?color=cb3837" alt="npm"></a>
   <img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python 3.8+">
-  <img src="https://img.shields.io/badge/node-18%2B-brightgreen" alt="Node 18+">
-  <img src="https://img.shields.io/badge/drivers-Playwright%20%C2%B7%20Puppeteer-45ba4b" alt="Playwright / Puppeteer">
+  <img src="https://img.shields.io/badge/driver-Playwright-45ba4b" alt="Playwright">
   <a href="https://docs.capiumbrowser.com"><img src="https://img.shields.io/badge/docs-capiumbrowser.com-6741d9" alt="Docs"></a>
   <a href="https://capiumbrowser.com"><img src="https://img.shields.io/badge/website-capiumbrowser.com-1c7ed6" alt="Website"></a>
 </p>
@@ -15,7 +13,7 @@
 <h3 align="center">A stealth Chromium built to withstand bot detection — because it's a real browser.</h3>
 
 <table><tr><td>
-Not a patched config. Not a JavaScript injection. A real Chromium binary whose fingerprints are rewritten at the <strong>C++ source level</strong> and compiled in. Page scripts that hunt for injected hooks find nothing to catch — the values a site reads <em>are</em> the persona's values, produced by the engine. Drive it with the <strong>Playwright</strong> or <strong>Puppeteer</strong> API you already know — from <strong>Python</strong> or <strong>Node.js</strong>.
+Not a patched config. Not a JavaScript injection. A real Chromium binary whose fingerprints are rewritten at the <strong>C++ source level</strong> and compiled in. Page scripts that hunt for injected hooks find nothing to catch — the values a site reads <em>are</em> the persona's values, produced by the engine. Drive it with the <strong>Playwright</strong> API you already know.
 </td></tr></table>
 
 <p align="center">
@@ -27,23 +25,20 @@ Not a patched config. Not a JavaScript injection. A real Chromium binary whose f
   <a href="https://docs.capiumbrowser.com">Documentation</a> ·
   <a href="https://capiumbrowser.com/#pricing">Pricing</a> ·
   <a href="https://capiumbrowser.com/#demo">Demo</a> ·
-  <a href="examples">Examples</a>
+  <a href="https://github.com/capzy-ai/capiumbrowser/tree/main/examples">Examples</a>
 </p>
 
 ---
 
-**One browser, two official SDKs** — same options, same builds, same license:
+**`pip install capiumbrowser`** — `import capiumbrowser` · CLI: `python -m capiumbrowser`
 
-| SDK | Install | Folder |
-|---|---|---|
-| 🐍 **Python** — Playwright | `pip install capiumbrowser` | [capiumbrowser-python/](capiumbrowser-python/) |
-| 🟨 **Node.js** — Playwright *or* Puppeteer | `npm install capiumbrowser playwright-core`<br>`npm install capiumbrowser puppeteer-core` | [capiumbrowser-node/](capiumbrowser-node/) |
+> Using Node.js? The same browser ships as an [npm package](https://www.npmjs.com/package/capiumbrowser) for Playwright *and* Puppeteer.
 
 - **Source-level C++ stealth** — User-Agent & UA-CH, WebGL/GPU, canvas, audio, screen, hardware, fonts, voices, WebRTC, `navigator.webdriver`, DevTools, pointer, client-rects — all rewritten **in the browser's own source**, below the JavaScript layer.
 - **Coherent per-seed identities** — one integer **seed** derives a complete, self-consistent device (OS, GPU, cores, memory, screen, fonts, UA). Same seed ⇒ same machine, on any host, every run.
 - **`humanize=True`** — ordinary `page.click` / `fill` / `type` become curved, human-timed mouse, keyboard, and scroll. One flag, and interactions look human rather than scripted.
 - **`geoip=True`** — the binary resolves its own exit IP through your proxy and pins timezone, WebRTC IP, geolocation, and `navigator.languages` to match. The clock, locale, and IP all tell one story.
-- **Plain drivers over CDP** — no patched driver, no init-script signature, no `Object.defineProperty` shim to detect. Update the engine independently (`pip install -U playwright` / `npm i -U playwright-core`).
+- **Plain Playwright over CDP** — no patched driver, no init-script signature, no `Object.defineProperty` shim to detect. Update the engine with `pip install -U playwright`.
 - **Always the latest binary** — one license key fetches the newest checksum-verified build for your platform and reuses it thereafter.
 - **Free tier — 1 concurrent session.** Paid tiers raise the concurrent-session cap. [Start free →](https://capiumbrowser.com)
 
@@ -61,22 +56,7 @@ page.click("#submit")
 browser.close()                  # also stops the Playwright driver — no leaked processes
 ```
 
-```js
-// Node.js — same options in camelCase; auto-detects the installed driver
-// (or pick one: require('capiumbrowser/playwright') / require('capiumbrowser/puppeteer'))
-const { launchContext } = require('capiumbrowser');
-
-const { browser, page } = await launchContext({
-  seed: 200123,
-  proxy: 'http://user:pass@host:port', geoip: true,
-  humanize: true,                // attaches page.humanClick / humanType / humanScroll
-  url: 'https://fingerprint.com/demo/',
-});
-await page.humanType('#email', 'alex@example.com');
-await browser.close();
-```
-
-> The `capiumbrowser` **SDKs are open**; the **Capium browser binary is licensed** per concurrent session. There's a **free tier with 1 concurrent session** — see [Licensing](#licensing).
+> The `capiumbrowser` **Python package is open**; the **Capium browser binary is licensed** per concurrent session. There's a **free tier with 1 concurrent session** — see [Licensing](#licensing).
 
 ---
 
@@ -97,12 +77,6 @@ await browser.close();
 pip install capiumbrowser              # the SDK
 pip install -U playwright              # the driver — a normal, independently-updatable dependency
 python -m playwright install-deps      # OS libraries for Chromium (once, on Linux)
-```
-
-```bash
-# Node.js — pick your driver (both are optional peer dependencies):
-npm install capiumbrowser playwright-core     # Playwright
-npm install capiumbrowser puppeteer-core      # Puppeteer
 ```
 
 You do **not** run `playwright install chromium` — Capium ships its own binary. On first launch the SDK
@@ -238,7 +212,7 @@ clean against a modern fingerprinting suite — with the correct GPU, fonts, and
 
 ## How it works
 
-1. **You install** → `pip install capiumbrowser` (or `npm install capiumbrowser playwright-core`). This downloads **nothing** but the SDK — the
+1. **You install** → `pip install capiumbrowser`. This downloads **nothing** but the Python package — the
    ~230 MB binary needs your license key, so it can't be fetched at pip-install time.
 2. **First launch** → the license-gated binary auto-downloads for your platform (checksum-verified) and
    caches. It's fetched **lazily** on that first `launch()` — or eagerly with `python -m capiumbrowser install`.
@@ -266,10 +240,7 @@ rejected license (401/403), an unreachable server, or a checksum mismatch each r
 ## API
 
 Every entry point has an `await`-able twin (`launch_async`, `launch_context_async`,
-`launch_persistent_context_async`). The **Node SDK** mirrors the same trio — `launch`,
-`launchContext`, `launchPersistentContext` (all async) — on `capiumbrowser/playwright` and
-`capiumbrowser/puppeteer`, plus `buildLaunchOptions()` for frameworks that must call the
-driver''s own `launch()` themselves.
+`launch_persistent_context_async`).
 
 | Function | Returns | Use for |
 |---|---|---|
@@ -311,24 +282,13 @@ async def main():
 asyncio.run(main())
 ```
 
-```js
-// Node.js — same trio, camelCase options, everything async
-const { launch, launchContext, launchPersistentContext } = require('capiumbrowser');
-// explicit driver: require('capiumbrowser/playwright') or require('capiumbrowser/puppeteer')
-
-const browser = await launch({ seed: 200123, proxy: 'socks5://user:pass@host:port', geoip: true });
-const ctx = await launchPersistentContext('profiles/acct1', { seed: 200123, platform: 'linux',
-  extensionPaths: ['/path/to/unpacked-extension'] });
-const { page } = await launchContext({ seed: 200123, humanize: true, url: 'https://example.com' });
-```
-
 ---
 
 ## Parameters
 
 Every parameter the SDK accepts. Unless noted, all of these work on **`launch`**,
 **`launch_context`**, and **`launch_persistent_context`** (and their `_async` twins) — `launch_context`
-and `launch_persistent_context` forward everything to `launch`. The **Node SDK** accepts the same options in camelCase (`stealthArgs`, `licenseKey`, `extensionPaths`, `humanPreset`, …).
+and `launch_persistent_context` forward everything to `launch`.
 
 ### Identity & rendering
 
@@ -432,7 +392,7 @@ for name, seed in {"acct-a": 210001, "acct-b": 210002, "acct-c": 210003}.items()
 ```
 
 Full runnable version (personas, persistent profiles, a fleet, proxy+geo, full control):
-[`examples/profiles.py`](examples/profiles.py) · Node version: [`examples/profiles.js`](examples/profiles.js).
+[`examples/profiles.py`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/profiles.py).
 
 ---
 
@@ -562,67 +522,53 @@ hiding the host's other fonts.
 
 On a **matching-OS host** the persona uses the operating system's own fonts and there's nothing to install.
 
-### Copying Windows fonts to a Linux host (Windows persona on Linux)
-
-Copy the whole font folder from any real Windows machine you own — it covers the required set
-(Segoe UI, Segoe UI Light, Calibri, Marlett, MS UI Gothic, Franklin Gothic, Consolas, Courier New)
-and more:
+**Copying Windows fonts to a Linux host** (Windows persona on Linux) — copy the whole font
+folder from any real Windows machine you own; it covers the required set (Segoe UI, Segoe UI
+Light, Calibri, Marlett, MS UI Gothic, Franklin Gothic, Consolas, Courier New) and more:
 
 ```bash
-# from the Windows machine (PowerShell), push to the Linux box:
-scp C:\Windows\Fonts\* user@linuxbox:~/.local/share/fonts/windows/
-
 # on the Linux box:
-mkdir -p ~/.local/share/fonts/windows      # (before the copy)
-fc-cache -f                                # refresh fontconfig
+mkdir -p ~/.local/share/fonts/windows
+# from the Windows machine (PowerShell):
+scp C:\Windows\Fonts\* user@linuxbox:~/.local/share/fonts/windows/
+# back on the Linux box:
+fc-cache -f
 ```
 
 The distro also ships **`capium-install-fonts.sh`**, which installs the free baseline
 (emoji/CJK + the Carlito/Caladea/Liberation substitutes) via apt and then checks for the
 required Windows set. Once the fonts resolve, the `capium` wrapper **auto-enables**
-`--fingerprint-windows-font-metrics` — no flag needed. Use `CAPIUM_FONTS_DIR=/path` for a
-custom directory, and `CAPIUM_SUPPRESS_FONT_WARNING=1` to silence the hint once you've
-supplied them.
+`--fingerprint-windows-font-metrics` — no flag needed.
 
-### Copying Windows fonts to a macOS host (Windows persona on a Mac)
+**Copying Windows fonts to a macOS host** — install the same `.ttf`/`.ttc` files via Font
+Book, or drop them into `~/Library/Fonts/` (picked up immediately). Calibri/Cambria are the
+highest-value ones for text metrics.
 
-Copy the same `C:\Windows\Fonts\*.ttf`/`*.ttc` files over and install them — either
-double-click → Font Book, or drop them into `~/Library/Fonts/` (no cache refresh needed;
-macOS picks them up immediately). Calibri/Cambria are the highest-value ones for text metrics.
+**macOS persona on a non-Mac host** — needs genuine Apple fonts (SF Pro, Helvetica Neue, …)
+from a Mac you own, placed in the same font locations. This is the hardest cross-OS
+direction — a macOS persona reads cleanest on a real Mac.
 
-### macOS persona on a non-Mac host
-
-Needs genuine Apple fonts (SF Pro, Helvetica Neue, …) copied from a Mac you own into the same
-font locations (`CAPIUM_FONTS_DIR` / `~/.local/share/fonts` on Linux). This is the hardest
-cross-OS direction — a macOS persona reads cleanest on a real Mac, where the OS fonts and the
-Apple GPU back the claim natively.
-
-> **Font licensing.** Microsoft and Apple fonts are proprietary — copy them only between
-> machines you hold licenses for (e.g. your own Windows/Mac machines or licensed server
-> images). The bundled substitutes are free and cover the metric-critical cases as a partial
-> fallback. Full per-OS guide: [docs](https://docs.capiumbrowser.com).
+Copy proprietary fonts only between machines you hold licenses for. On Linux,
+`CAPIUM_FONTS_DIR` adds a custom font directory; `CAPIUM_SUPPRESS_FONT_WARNING=1` silences the
+"missing Windows fonts" hint once you've supplied them. Full per-OS guide: [docs](https://docs.capiumbrowser.com).
 
 ---
 
 ## Framework integrations
 
 Capium is a Chromium fork, so any Chromium automation tool works — point it at the binary and add the
-persona flags. Runnable examples live in [`examples/integrations/`](examples/integrations/):
+persona flags. Runnable examples live in [`examples/integrations/`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/integrations/):
 
 | Framework | Language | Example |
 |---|---|---|
-| [Selenium](https://github.com/SeleniumHQ/selenium) | Python | [`selenium.py`](examples/integrations/selenium.py) |
-| [undetected-chromedriver](https://github.com/ultrafunkamsterdam/undetected-chromedriver) | Python | [`undetected_chromedriver.py`](examples/integrations/undetected_chromedriver.py) |
-| [browser-use](https://github.com/browser-use/browser-use) | Python | [`browser_use.py`](examples/integrations/browser_use.py) |
-| [Crawl4AI](https://github.com/unclecode/crawl4ai) | Python | [`crawl4ai.py`](examples/integrations/crawl4ai.py) |
-| [Crawlee](https://github.com/apify/crawlee-python) | Python | [`crawlee.py`](examples/integrations/crawlee.py) |
-| [Scrapling](https://github.com/D4Vinci/Scrapling) | Python | [`scrapling.py`](examples/integrations/scrapling.py) |
-| [LangChain](https://github.com/langchain-ai/langchain) | Python | [`langchain_loader.py`](examples/integrations/langchain_loader.py) |
-| [agent-browser](https://github.com/nichochar/agent-browser) | Shell | [`agent_browser.sh`](examples/integrations/agent_browser.sh) |
-| [Crawlee](https://github.com/apify/crawlee) | Node.js | [`crawlee.js`](examples/integrations/crawlee.js) |
-| [@playwright/test](https://playwright.dev/docs/intro) | Node.js | [`playwright_test.spec.js`](examples/integrations/playwright_test.spec.js) |
-| [puppeteer-cluster](https://github.com/thomasdondorf/puppeteer-cluster) | Node.js | [`puppeteer_cluster.js`](examples/integrations/puppeteer_cluster.js) |
-| any CDP tool | Node.js | [`cdp_connect.js`](examples/integrations/cdp_connect.js) |
+| [Selenium](https://github.com/SeleniumHQ/selenium) | Python | [`selenium.py`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/integrations/selenium.py) |
+| [undetected-chromedriver](https://github.com/ultrafunkamsterdam/undetected-chromedriver) | Python | [`undetected_chromedriver.py`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/integrations/undetected_chromedriver.py) |
+| [browser-use](https://github.com/browser-use/browser-use) | Python | [`browser_use.py`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/integrations/browser_use.py) |
+| [Crawl4AI](https://github.com/unclecode/crawl4ai) | Python | [`crawl4ai.py`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/integrations/crawl4ai.py) |
+| [Crawlee](https://github.com/apify/crawlee-python) | Python | [`crawlee.py`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/integrations/crawlee.py) |
+| [Scrapling](https://github.com/D4Vinci/Scrapling) | Python | [`scrapling.py`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/integrations/scrapling.py) |
+| [LangChain](https://github.com/langchain-ai/langchain) | Python | [`langchain_loader.py`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/integrations/langchain_loader.py) |
+| [agent-browser](https://github.com/nichochar/agent-browser) | Shell | [`agent_browser.sh`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/integrations/agent_browser.sh) |
 
 Two patterns cover them all:
 
@@ -640,25 +586,13 @@ browser = await launch_async(seed=200123, geoip=True,
 # point your framework at http://127.0.0.1:9242 — all stealth flags are already set
 ```
 
-```js
-// Node.js — the same two patterns:
-// 1) buildLaunchOptions() returns {executablePath, args, env, ...} for ANY framework's
-//    own launcher (Crawlee launchOptions, puppeteer-cluster puppeteerOptions, ...)
-const { buildLaunchOptions } = require('capiumbrowser/playwright'); // or /puppeteer
-const launchOptions = await buildLaunchOptions({ seed: 200123, platform: 'windows' });
-
-// 2) CDP attach — launch Capium, connect any tool to the port (see cdp_connect.js)
-const { launch } = require('capiumbrowser/playwright');
-const browser = await launch({ seed: 200123, args: ['--remote-debugging-port=9242'] });
-```
-
 ---
 
 ## Deployment
 
 Capium runs identically local, in Docker, and on a VPS. For serverless one-shot scrapes there's a complete
 **AWS Lambda** container recipe (headed under Xvfb, cold-start-hardened) in
-[`examples/integrations/aws_lambda/`](examples/integrations/aws_lambda/).
+[`examples/integrations/aws_lambda/`](https://github.com/capzy-ai/capiumbrowser/tree/main/examples/integrations/aws_lambda/).
 
 Build your own image from pip — download the binary at build time with a BuildKit secret so the key never
 lands in a layer:
@@ -674,22 +608,6 @@ CMD ["python", "/app/your_script.py"]
 
 ```bash
 DOCKER_BUILDKIT=1 docker build --secret id=capium_license,env=CAPIUM_LICENSE_KEY -t my-capium .
-```
-
-The Node image is the same shape (`npx capiumbrowser install` pre-fetches the binary at build
-time; `CAPIUM_HOME=/opt/capium` keeps it out of `node_modules` so an `npm ci` never deletes it):
-
-```dockerfile
-FROM node:22-slim
-ENV CAPIUM_HOME=/opt/capium
-RUN npx -y playwright-core install-deps chromium
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci        # capiumbrowser + playwright-core (or puppeteer-core) from your package.json
-RUN --mount=type=secret,id=capium_license \
-    CAPIUM_LICENSE_KEY="$(cat /run/secrets/capium_license)" npx capiumbrowser install
-COPY your_script.js .
-CMD ["node", "your_script.js"]
 ```
 
 On a headless Linux server, run the browser under a virtual display (`Xvfb :99` + `DISPLAY=:99`) so it
@@ -720,15 +638,6 @@ python -m capiumbrowser version    # SDK version + the Chromium build it targets
 python -m capiumbrowser install    # download the capium browser binary
 SEED=200123 PLATFORM=linux PROXY="http://user:pass@host:port" GEOIP=1 HUMANIZE=1 \
   python -m capiumbrowser run https://example.com    # launch a demo browser (Ctrl-C to exit)
-```
-
-The Node SDK ships the same CLI:
-
-```bash
-npx capiumbrowser            # info — environment check (license + binary + drivers)
-npx capiumbrowser status     # license entitlements
-npx capiumbrowser install    # download the capium browser binary
-npx capiumbrowser run URL    # demo launch (same SEED/PLATFORM/PROXY/... env vars)
 ```
 
 `info` is the "what do I still need installed?" check — Playwright, the binary (path + version), the
@@ -797,7 +706,7 @@ rejected. The key is handed to the browser subprocess through the **environment*
 
 ## License
 
-- **`capiumbrowser` SDKs** ([Python](capiumbrowser-python/) · [Node.js](capiumbrowser-node/)) — open; see [LICENSE](LICENSE).
+- **`capiumbrowser` Python package** (this directory) — open; see [LICENSE](LICENSE).
 - **Capium browser binary** (compiled Chromium) — licensed per concurrent session; requires an active key
   to download and run. Free tier available. See [capiumbrowser.com](https://capiumbrowser.com).
 

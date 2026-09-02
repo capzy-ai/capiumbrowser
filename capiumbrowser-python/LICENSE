@@ -1,0 +1,38 @@
+Capzy capiumbrowser SDK License
+
+Copyright (c) Capzy. All rights reserved.
+
+1. Definitions.
+   "SDK" means this Python package ("capiumbrowser"), its source, and its
+   documentation. "Browser Binary" means the Capium stealth Chromium build that
+   the SDK downloads and launches. "License Key" means a key issued by Capzy that
+   entitles you to run the Browser Binary.
+
+2. The SDK.
+   Capzy grants you a non-exclusive, non-transferable, royalty-free license to
+   install and use the SDK to launch the Browser Binary, and to modify the SDK for
+   your own internal use. You may not remove or alter this notice.
+
+3. The Browser Binary is licensed separately.
+   Use of the Browser Binary requires a valid License Key and is governed by the
+   Capzy Terms of Service. The Browser Binary is enforced per concurrent session;
+   see the documentation. Nothing in this SDK license grants any right to use the
+   Browser Binary without a valid License Key.
+
+4. Restrictions.
+   You may not sublicense, resell, or redistribute the Browser Binary. You may not
+   use the SDK or the Browser Binary to violate any applicable law or the rights of
+   any third party. You are responsible for using the software only where you are
+   authorized to do so.
+
+5. No warranty.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+   FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+6. Limitation of liability.
+   IN NO EVENT SHALL CAPZY BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For licensing inquiries, visit https://capzy.ai.

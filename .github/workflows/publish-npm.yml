@@ -1,0 +1,59 @@
+# Publishes the Node SDK (capiumbrowser-node/) to npm as `capiumbrowser` via Trusted
+# Publishing (OIDC) — no token/secret stored. Fires when you publish a GitHub Release (tag).
+# Also runnable manually from the Actions tab.
+#
+# Lives at the capiumbrowser/ product root: the public capzy-ai/capiumbrowser repo mirrors
+# that folder, so this .github/ is the mirrored repo's root .github/ and runs there.
+#
+# One-time npm setup (https://www.npmjs.com/package/capiumbrowser/access, "Trusted publisher"):
+#   Publisher         : GitHub Actions
+#   Organization/user : capzy-ai
+#   Repository        : capiumbrowser
+#   Workflow filename : publish-npm.yml
+# Trusted publishing needs npm >= 11.5 (we upgrade explicitly below). Provenance attestation
+# is generated automatically for trusted-publisher releases.
+
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: capiumbrowser-node
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm test
+
+  publish:
+    name: Publish to npm
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+      - name: Update npm (trusted publishing needs >= 11.5)
+        run: npm install -g npm@latest
+      - run: npm install
+      - name: Publish
+        run: npm publish --access public
