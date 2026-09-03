@@ -17,7 +17,7 @@ import json
 import os
 import platform as _platform
 
-__version__ = "0.1.1"
+__version__ = "1.0.0"
 
 # Used only if channels.json can't be read (corrupt/removed install). ensure_binary() raises a
 # clear error long before the "unsupported platform" case matters; this keeps lookups total.
