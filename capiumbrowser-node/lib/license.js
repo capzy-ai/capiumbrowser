@@ -14,8 +14,10 @@ const os = require('os');
 const path = require('path');
 
 const { CapiumConfigError, CapiumExpiredError, CapiumServerDownError } = require('./errors');
+const { SDK_VERSION } = require('./version');
 
 const DEFAULT_SERVER = 'https://license.capzy.ai';
+const USER_AGENT = `capiumbrowser/${SDK_VERSION}`;
 
 function licenseFile() {
   // CAPIUM_LICENSE_FILE is a test/deploy override; the contract path is ~/.capium/license.
@@ -167,6 +169,7 @@ async function status(key = null, server = null) {
         'X-Capzy-Device-Fp': fp,
         'X-Capzy-Signature': sig,
         'Content-Type': 'application/json',
+        'User-Agent': USER_AGENT,
       },
       signal: AbortSignal.timeout(10000),
     });

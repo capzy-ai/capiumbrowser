@@ -103,9 +103,14 @@ def _wrapper_names():
 
 def _is_capium_dir(d):
     """True if `d` holds a capium distro (marker files present), so a generic `chrome.exe`
-    found there is ours and not an unrelated system Chrome install."""
+    found there is ours and not an unrelated system Chrome install.
+
+    `.capium-build` is the downloader's own version stamp: the Windows distro tar is FLAT
+    (chrome.exe at the root, no capium_fonts/BUILD_INFO inside), so the download layer writes
+    that marker into the directory it extracted and discovery trusts it."""
     return (os.path.isdir(os.path.join(d, "capium_fonts"))
-            or os.path.isfile(os.path.join(d, "BUILD_INFO.txt")))
+            or os.path.isfile(os.path.join(d, "BUILD_INFO.txt"))
+            or os.path.isfile(os.path.join(d, ".capium-build")))
 
 
 def _ensure_executable(path):

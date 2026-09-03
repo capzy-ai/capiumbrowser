@@ -18,9 +18,11 @@ import urllib.error
 import urllib.request
 
 from ..errors import CapiumConfigError, CapiumExpiredError, CapiumServerDownError
+from .._version import __version__
 
 DEFAULT_SERVER = "https://license.capzy.ai"
 _LICENSE_FILE = os.path.join(os.path.expanduser("~"), ".capium", "license")
+_USER_AGENT = "capiumbrowser/%s" % __version__
 
 
 def _from_file():
@@ -142,7 +144,8 @@ def status(key=None, server=None):
     req = urllib.request.Request(
         server + "/v1/activate", data=body, method="POST",
         headers={"X-Capzy-Timestamp": ts, "X-Capzy-Device-Fp": fp,
-                 "X-Capzy-Signature": sig, "Content-Type": "application/json"})
+                 "X-Capzy-Signature": sig, "Content-Type": "application/json",
+                 "User-Agent": _USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read())

@@ -34,6 +34,5 @@ def test_unsupported_platforms_raise():
 def test_distro_path_shape():
     p = download.distro_path("152.0.7977.65", "windows-x64")
     assert p == "/download/distro/chromium-v152.0.7977.65/capiumbrowser-windows-x64.tar.gz"
-    # filename is version-independent; only the folder carries the version
     assert "capiumbrowser-windows-x64.tar.gz" in p
     assert "chromium-v152.0.7977.65/" in p

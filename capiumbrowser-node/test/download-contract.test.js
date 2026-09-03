@@ -41,7 +41,6 @@ test('distro path shape', () => {
   const p = download.distroPath('152.0.7977.65', 'windows-x64');
   assert.equal(p,
     '/download/distro/chromium-v152.0.7977.65/capiumbrowser-windows-x64.tar.gz');
-  // filename is version-independent; only the folder carries the version
   assert.ok(p.includes('capiumbrowser-windows-x64.tar.gz'));
   assert.ok(p.includes('chromium-v152.0.7977.65/'));
 });

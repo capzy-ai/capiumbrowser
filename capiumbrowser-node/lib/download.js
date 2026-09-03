@@ -41,9 +41,10 @@ const tar = require('tar');
 const config = require('./config');
 const license = require('./license');
 const { CapiumError, CapiumExpiredError, CapiumServerDownError } = require('./errors');
-const { binaryVersionFor, isPublished } = require('./version');
+const { SDK_VERSION, binaryVersionFor, isPublished } = require('./version');
 
 const NET_TIMEOUT_MS = 300000;
+const USER_AGENT = `capiumbrowser/${SDK_VERSION}`;
 
 // (normalized os, normalized arch) -> distro tag used in the filename/URL.
 const SUPPORTED = {
@@ -86,8 +87,11 @@ function downloadTag(system = null, machine = null) {
 }
 
 /**
- * The signed request path for a build. Filename is version-independent; only the folder
- * carries the version (per the '...end name will all be the same' contract).
+ * The signed request path for a build: version in the folder, tag in the filename
+ * (`/download/distro/chromium-v<version>/capiumbrowser-<tag>.tar.gz`). Per-OS versions work
+ * because each tag lives under its own chromium-v<version>/ folder (win/mac .65 while linux
+ * is .64). Key travels in the X-Capzy-License header, the path is HMAC-signed, and the bytes
+ * are verified against the response's X-Capzy-SHA256.
  */
 function distroPath(version, tag) {
   return `/download/distro/chromium-v${version}/capiumbrowser-${tag}.tar.gz`;
@@ -216,11 +220,10 @@ function removeInstalls(root) {
  */
 async function download(url, headers, dest, version, tag) {
   let res;
-  // Cloudflare WAF-blocks default library User-Agents (undici/node) as bots (403). Send a
-  // browser UA unless the caller set one.
-  const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-           + '(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36';
-  const h = Object.assign({ 'User-Agent': UA }, headers || {});
+  // Identify the SDK on every request. undici otherwise sends a default UA that Cloudflare's
+  // Browser Integrity Check rejects as a bot (403) before the request reaches the origin. A
+  // stable product UA is both correct hygiene and what the edge allows.
+  const h = Object.assign({ 'User-Agent': USER_AGENT }, headers || {});
   try {
     res = await fetch(url, { headers: h, signal: AbortSignal.timeout(NET_TIMEOUT_MS) });
   } catch (e) {

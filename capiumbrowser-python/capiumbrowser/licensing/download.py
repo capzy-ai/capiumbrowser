@@ -39,10 +39,11 @@ import zipfile
 
 from . import client as _license
 from ..errors import CapiumError, CapiumExpiredError, CapiumServerDownError
-from .._version import binary_version_for, is_published
+from .._version import __version__, binary_version_for, is_published
 
 _CHUNK = 1 << 16
 _NET_TIMEOUT = 300
+_USER_AGENT = "capiumbrowser/%s" % __version__
 
 # (normalized os, normalized arch) -> distro tag used in the filename/URL.
 _SUPPORTED = {
@@ -87,8 +88,13 @@ def download_tag(system=None, machine=None):
 
 
 def distro_path(version, tag):
-    """The signed request path for a build. Filename is version-independent; only the folder
-    carries the version (per the '...end name will all be the same' contract)."""
+    """The signed request path+query for this platform's current stable build.
+
+    The signed request path for a build: version in the folder, tag in the filename
+    (`/download/distro/chromium-v<version>/capiumbrowser-<tag>.tar.gz`). Per-OS versions work
+    because each tag lives under its own chromium-v<version>/ folder (win/mac .65 while linux
+    is .64). Key travels in the X-Capzy-License header, the path is HMAC-signed, and the bytes
+    are verified against the response's X-Capzy-SHA256."""
     return "/download/distro/chromium-v%s/capiumbrowser-%s.tar.gz" % (version, tag)
 
 
@@ -100,41 +106,45 @@ def _dest_root():
     return os.environ.get("CAPIUM_HOME") or pkg_dir
 
 
-def _single_top(names):
-    """True if every archive entry sits under ONE common top-level directory (the tar layout,
-    e.g. `capium-151-linux-x64/...`). False for a FLAT archive (a Windows zip whose `chrome.exe`
-    / `locales/` sit at the root)."""
-    top = None
-    for n in names:
-        n = n.replace("\\", "/").strip("/")
-        if not n:
-            continue
-        first = n.split("/")[0]
-        if top is None:
-            top = first
-        elif first != top:
-            return False
-    return top is not None
-
-
 def _extract(path, root, subdir):
-    """Extract a distro archive, sniffing gzip/zip/tar so the server can ship any of them. A
-    single-top archive extracts into `root` (it carries its own `capium-*/` dir); a FLAT archive
-    is wrapped into `root/<subdir>` so it stays discoverable."""
+    """Extract a distro archive (gzip/zip/tar, sniffed by magic) and normalize it to a single
+    `root/<subdir>` directory named `capium-<major>-<tag>`, whatever the archive's own layout.
+
+    Returns that directory. Every archive shape lands the same way, so discovery (which globs
+    `capium-*`) and `_remove_installs` work identically on all platforms:
+      * FLAT archive (the Windows tar: `./chrome.exe`, `./locales/` at the root, no wrapper dir)
+        -> its contents become `root/<subdir>/...`.
+      * SINGLE-TOP archive (the Linux/macOS tar: everything under `capiumbrowser-<tag>/`)
+        -> that inner directory is moved to `root/<subdir>`.
+    Extraction goes to a scratch dir first so the shape is decided from what actually unpacked
+    (robust against `./`-prefixed flat tars, which name-based heuristics misread as single-top)."""
     with open(path, "rb") as f:
         magic = f.read(4)
-    if magic[:4] == b"PK\x03\x04":
-        with zipfile.ZipFile(path) as z:
-            dest = root if _single_top(z.namelist()) else os.path.join(root, subdir)
-            z.extractall(dest)
-    elif magic[:2] == b"\x1f\x8b":
-        with tarfile.open(path, "r:gz") as t:
-            dest = root if _single_top(t.getnames()) else os.path.join(root, subdir)
-            t.extractall(dest)
-    else:
-        with tarfile.open(path, "r:*") as t:
-            dest = root if _single_top(t.getnames()) else os.path.join(root, subdir)
-            t.extractall(dest)
+    scratch = tempfile.mkdtemp(dir=root, prefix=".capium-extract-")
+    target = os.path.join(root, subdir)
+    try:
+        if magic[:4] == b"PK\x03\x04":
+            with zipfile.ZipFile(path) as z:
+                z.extractall(scratch)
+        elif magic[:2] == b"\x1f\x8b":
+            with tarfile.open(path, "r:gz") as t:
+                t.extractall(scratch)
+        else:
+            with tarfile.open(path, "r:*") as t:
+                t.extractall(scratch)
+        entries = [e for e in os.listdir(scratch) if e not in (".", "..")]
+        if os.path.exists(target):
+            shutil.rmtree(target, ignore_errors=True)
+        if len(entries) == 1 and os.path.isdir(os.path.join(scratch, entries[0])):
+            # single-top: the archive carries its own wrapper dir -> that dir IS the distro
+            shutil.move(os.path.join(scratch, entries[0]), target)
+        else:
+            # flat: the scratch dir itself holds the distro files
+            shutil.move(scratch, target)
+    finally:
+        if os.path.isdir(scratch):
+            shutil.rmtree(scratch, ignore_errors=True)
+    return target
 
 
 _MARKER = ".capium-build"
@@ -184,11 +194,11 @@ def _remove_installs(root):
 def _download(url, headers, dest, version, tag):
     """Stream `url` to `dest`, mapping transport failures to typed errors and verifying the
     server's X-Capzy-SHA256 against the bytes. Returns the hex sha256."""
-    # The download server sits behind Cloudflare, which WAF-blocks the default "Python-urllib/x"
-    # User-Agent as a bot (403). Send a browser UA unless the caller set one.
+    # Identify the SDK on every request. urllib otherwise sends "Python-urllib/x" (or no UA),
+    # which Cloudflare's Browser Integrity Check rejects as a bot with 403 before the request
+    # reaches the origin. A stable product UA is both correct hygiene and what the edge allows.
     hdrs = dict(headers or {})
-    hdrs.setdefault("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                                  "(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36")
+    hdrs.setdefault("User-Agent", _USER_AGENT)
     req = urllib.request.Request(url, headers=hdrs)
     h = hashlib.sha256()
     expected = None
@@ -274,7 +284,7 @@ def ensure_binary(version=None, license_key=None, server=None):
 
     root = _dest_root()
     os.makedirs(root, exist_ok=True)
-    subdir = "capium-%s-%s" % (str(version).split(".")[0], tag)  # FLAT-archive wrapper name
+    subdir = "capium-%s-%s" % (str(version).split(".")[0], tag)  # normalized distro dir name
     with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tf:
         tmp = tf.name
     try:
@@ -282,7 +292,11 @@ def ensure_binary(version=None, license_key=None, server=None):
         # Only drop the stale install once the new bytes are in hand (a failed download must
         # never leave the host with no binary), then extract the new version.
         _remove_installs(root)
-        _extract(tmp, root, subdir)
+        distro_dir = _extract(tmp, root, subdir)
+        # Stamp the version marker into the distro dir BEFORE discovery: the FLAT Windows tar
+        # carries no capium marker file, and find_binary only accepts a bare chrome.exe next to
+        # one -- the downloader vouches for the directory it just extracted (mirrors the Node SDK).
+        _stamp_version(os.path.join(distro_dir, "chrome"), version)
     finally:
         try:
             os.remove(tmp)
