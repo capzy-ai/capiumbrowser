@@ -108,6 +108,146 @@ npm install capiumbrowser puppeteer-core      # Puppeteer
 You do **not** run `playwright install chromium` — Capium ships its own binary. On first launch the SDK
 fetches the per-platform build from the license service (authenticated, checksum-verified) and caches it.
 
+### Download the browser — just your license key
+
+The browser binary is fetched with **only your Capium license key** — no separate token, no manual
+download, no per-platform URL to figure out. Set the key once:
+
+```bash
+export CAPIUM_LICENSE_KEY=cap_your_key_here
+# or put a `KEY=cap_...` line in ~/.capium/license
+```
+
+Then the right build for your OS/arch downloads automatically — either **on first launch**, or ahead of
+time with the CLI:
+
+```bash
+python -m capiumbrowser install      # Python
+npx capiumbrowser install            # Node.js
+# ...or skip this entirely: the first launch() downloads it for you.
+```
+
+That same key both **authorizes the download** and **licenses the browser**, and it's passed to the binary
+through the environment — never on the command line. The download is checksum-verified before anything
+runs, and the build is cached (under `~/.capium`), so it's fetched once and reused. Check what you have and
+what you still need with `python -m capiumbrowser` / `npx capiumbrowser` (the `info` command).
+
+---
+
+## Downloading builds directly
+
+Most people just let the SDK download the browser (above). But for **Docker builds, air-gapped installs, CI
+caching, or your own tooling**, you can pull a specific build's `.tar.gz` straight from the license service.
+
+### The request
+
+```
+GET https://license.capzy.ai/download/distro/chromium-v<version>/capiumbrowser-<tag>.tar.gz
+```
+
+Authenticated with your license key plus a short HMAC signature over the request path — three headers:
+
+| Header | Value |
+| --- | --- |
+| `X-Capzy-License` | your `cap_...` key |
+| `X-Capzy-Timestamp` | current time, Unix seconds |
+| `X-Capzy-Signature` | `HMAC-SHA256(key, "<timestamp>.<path>")`, lowercase hex |
+
+Send a non-default `User-Agent` too. The response streams the archive and includes an `X-Capzy-SHA256`
+header you can verify against the bytes.
+
+### Platform tags & current versions
+
+| `<tag>` | `<version>` |
+| --- | --- |
+| `windows-x64` | `152.0.7977.65` |
+| `macos-arm64` | `152.0.7977.65` |
+| `linux-x64` | `152.0.7977.64` |
+| `linux-arm64` | *(coming soon)* |
+
+The current stable version per platform is also in each [release's checksums](https://github.com/capzy-ai/capiumbrowser/releases).
+
+### curl (bash)
+
+```bash
+KEY="cap_your_key_here"
+VERSION="152.0.7977.65"          # see the table above
+TAG="windows-x64"                # windows-x64 | macos-arm64 | linux-x64 | linux-arm64
+REQ_PATH="/download/distro/chromium-v${VERSION}/capiumbrowser-${TAG}.tar.gz"
+
+TS=$(date +%s)
+SIG=$(printf '%s' "${TS}.${REQ_PATH}" | openssl dgst -sha256 -hmac "${KEY}" | sed 's/^.*= //')
+
+curl -fSL "https://license.capzy.ai${REQ_PATH}" \
+  -H "X-Capzy-License: ${KEY}" \
+  -H "X-Capzy-Timestamp: ${TS}" \
+  -H "X-Capzy-Signature: ${SIG}" \
+  -H "User-Agent: capiumbrowser/1.0.0" \
+  -o "capiumbrowser-${TAG}.tar.gz"
+
+# verify (optional): compare against the X-Capzy-SHA256 header / the release checksums
+sha256sum "capiumbrowser-${TAG}.tar.gz"
+```
+
+### Node.js
+
+```js
+const crypto = require('crypto');
+const fs = require('fs');
+const { pipeline } = require('stream/promises');
+const { Readable } = require('stream');
+
+const KEY = process.env.CAPIUM_LICENSE_KEY;
+const VERSION = '152.0.7977.65', TAG = 'windows-x64';
+const path = `/download/distro/chromium-v${VERSION}/capiumbrowser-${TAG}.tar.gz`;
+
+const ts = String(Math.floor(Date.now() / 1000));
+const sig = crypto.createHmac('sha256', KEY).update(`${ts}.${path}`).digest('hex');
+
+const res = await fetch(`https://license.capzy.ai${path}`, {
+  headers: {
+    'X-Capzy-License': KEY,
+    'X-Capzy-Timestamp': ts,
+    'X-Capzy-Signature': sig,
+    'User-Agent': 'capiumbrowser/1.0.0',
+  },
+});
+await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`capiumbrowser-${TAG}.tar.gz`));
+```
+
+### Python
+
+```python
+import hashlib, hmac, time, urllib.request
+
+KEY = "cap_your_key_here"
+VERSION, TAG = "152.0.7977.65", "windows-x64"
+path = f"/download/distro/chromium-v{VERSION}/capiumbrowser-{TAG}.tar.gz"
+
+ts = str(int(time.time()))
+sig = hmac.new(KEY.encode(), f"{ts}.{path}".encode(), hashlib.sha256).hexdigest()
+req = urllib.request.Request("https://license.capzy.ai" + path, headers={
+    "X-Capzy-License": KEY, "X-Capzy-Timestamp": ts, "X-Capzy-Signature": sig,
+    "User-Agent": "capiumbrowser/1.0.0",
+})
+with urllib.request.urlopen(req) as r, open(f"capiumbrowser-{TAG}.tar.gz", "wb") as f:
+    f.write(r.read())
+```
+
+If the SDK is already installed, it does the signing for you — `capiumbrowser.licensing.client.get_headers(key, path)`
+returns the three headers, and `download.distro_path(version, tag)` builds the path.
+
+### Using a build you downloaded
+
+Extract it, then point the SDK at it — no re-download:
+
+```bash
+mkdir -p ~/.capium && tar -xzf capiumbrowser-windows-x64.tar.gz -C ~/.capium/capium-152-windows-x64
+export CAPIUM_BINARY=~/.capium/capium-152-windows-x64/chrome     # chrome.exe on Windows
+```
+
+Or drop the extracted `capium-*` folder under `CAPIUM_HOME` and the SDK discovers it automatically.
+
 **Migrating from Playwright?** It's a one-line change — the returned object is a standard Playwright `Browser`:
 
 ```diff

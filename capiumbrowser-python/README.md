@@ -82,6 +82,28 @@ python -m playwright install-deps      # OS libraries for Chromium (once, on Lin
 You do **not** run `playwright install chromium` — Capium ships its own binary. On first launch the SDK
 fetches the per-platform build from the license service (authenticated, checksum-verified) and caches it.
 
+### Download the browser — just your license key
+
+The browser binary is fetched with **only your Capium license key** — no separate token, no manual
+download, no per-platform URL to figure out. Set the key once:
+
+```bash
+export CAPIUM_LICENSE_KEY=cap_your_key_here
+# or put a `KEY=cap_...` line in ~/.capium/license
+```
+
+Then the right build for your OS/arch downloads automatically — either **on first launch**, or ahead of
+time with the CLI:
+
+```bash
+python -m capiumbrowser install     # ...or skip it: the first launch() downloads the binary for you.
+```
+
+That same key both **authorizes the download** and **licenses the browser**, and it's passed to the binary
+through the environment — never on the command line. The download is checksum-verified before anything runs
+and cached (under `~/.capium`), so it's fetched once and reused. Run `python -m capiumbrowser` (the `info`
+check) to see your license, the installed build, and anything still missing.
+
 **Migrating from Playwright?** It's a one-line change — the returned object is a standard Playwright `Browser`:
 
 ```diff
