@@ -17,7 +17,7 @@ import json
 import os
 import platform as _platform
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # Used only if channels.json can't be read (corrupt/removed install). ensure_binary() raises a
 # clear error long before the "unsupported platform" case matters; this keeps lookups total.
@@ -57,6 +57,43 @@ CAPIUM_BINARY_VERSIONS = _versions_from_manifest()
 def binary_version_for(tag):
     """The current stable Capium binary version for a distro tag (e.g. 'windows-x64')."""
     return CAPIUM_BINARY_VERSIONS.get(tag, _DEFAULT_BINARY_VERSION)
+
+
+def _revisions_from_manifest():
+    if not _STABLE:
+        return {}
+    return {tag: int(e["revision"]) for tag, e in _STABLE.items()
+            if isinstance(e, dict) and isinstance(e.get("revision"), int)}
+
+
+# Re-spin variant per tag (>=1). Same Chromium `version` can be rebuilt (a stealth/fingerprint
+# change with no engine bump); each re-spin increments this. 1 = the base build.
+CAPIUM_BINARY_REVISIONS = _revisions_from_manifest()
+
+
+def binary_revision_for(tag):
+    """The re-spin variant (>=1) for a distro tag. 1 = the base build served from the
+    suffix-less folder; 2,3,... are re-spins of the SAME Chromium version served from
+    chromium-v<version>-r<N>/ (so a re-spin never overwrites the base artifact on R2).
+
+    A re-spin (r2, r3, ...) is the exception -- a stealth/fingerprint change on an unchanged
+    engine. The normal path forward is a Chromium version bump, which yields a fresh
+    chromium-v<newversion>/ base folder on its own (revision resets to 1)."""
+    return CAPIUM_BINARY_REVISIONS.get(tag, 1)
+
+
+def build_id(version, revision):
+    """Stable identity of one specific build = the R2 folder discriminator.
+
+    revision 1 -> the version itself (chromium-v<version>/, no suffix -- the base build);
+    revision N>=2 -> '<version>-r<N>' (chromium-v<version>-r<N>/, a same-engine re-spin).
+    Used for BOTH the download folder and the install-cache key, so a revision bump on an
+    unchanged Chromium version still re-downloads instead of reusing the stale base build."""
+    try:
+        n = int(revision)
+    except (TypeError, ValueError):
+        n = 1
+    return version if n < 2 else "%s-r%d" % (version, n)
 
 
 def is_published(tag):

@@ -10,6 +10,9 @@
 #   Organization/user : capzy-ai
 #   Repository        : capiumbrowser
 #   Workflow filename : publish-npm.yml
+#   Environment name  : npm
+# Then create a GitHub environment named "npm" under Settings > Environments (gate it with
+# required reviewers / a tag rule so only an approved release run can publish).
 # Trusted publishing needs npm >= 11.5 (we upgrade explicitly below). Provenance attestation
 # is generated automatically for trusted-publisher releases.
 
@@ -43,6 +46,7 @@ jobs:
     name: Publish to npm
     needs: test
     runs-on: ubuntu-latest
+    environment: npm # must match the environment set on npm's Trusted Publisher config
     permissions:
       contents: read
       id-token: write # required for Trusted Publishing (OIDC)

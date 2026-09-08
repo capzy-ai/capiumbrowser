@@ -1,12 +1,12 @@
 {
-  "_comment": "SINGLE SOURCE OF TRUTH for the current stable Capium browser build per OS/arch. Each OS reaches stable independently -- edit one entry without touching the others. This file ships inside the wheel (the SDK reads it to pick each host's stable build) AND is published to the download server by the release pipeline (so the server/website can resolve 'latest stable' without a new SDK release). `version` is the Chromium base of the immutable artifact folder; `revision` is the cap<N> re-spin counter. `published: false` means the tag is declared but no artifact exists yet -- the SDK raises a clear 'not published yet' error instead of a raw 404.",
+  "_comment": "SINGLE SOURCE OF TRUTH for the current stable Capium browser build per OS/arch. Each OS reaches stable independently -- edit one entry without touching the others. This file ships inside the wheel (the SDK reads it to pick each host's stable build) AND is published to the download server by the release pipeline. `version` is the Chromium base; `revision` is the re-spin counter -- the served R2 folder is chromium-v<version>/ for revision 1 (the base build) and chromium-v<version>-r<N>/ for a re-spin (N>=2), so publishing a re-spin never overwrites the base artifact older SDKs still fetch. `published: false` means the tag is declared but no artifact exists yet -- the SDK raises a clear 'not published yet' error instead of a raw 404.",
   "schema": 1,
-  "updated": "2026-09-02",
+  "updated": "2026-09-08",
   "channels": {
     "stable": {
-      "windows-x64": { "version": "152.0.7977.65", "revision": 2, "sha256": "eec6d63a8a1ae7371388a39d10506117261131768020f15aa2d281d9931d35c0", "published": true },
-      "macos-arm64": { "version": "152.0.7977.65", "revision": 2, "sha256": "350e7f87b8f8e7e32feee26b8844e80b4650c9aa5fb6888fbcf4cc19fb08eda9", "published": true },
-      "linux-x64":   { "version": "152.0.7977.64", "revision": 2, "sha256": "248e735b3afec58a44e962cd866f704adfb15ee8b71cf976665dd109f512b7c5", "published": true },
+      "windows-x64": { "version": "152.0.7977.65", "revision": 2, "sha256": "1556ad4fd5fe555b3c427be5e868bcace705f271ec3bcd6be4674cae8163ffc6", "published": true },
+      "macos-arm64": { "version": "152.0.7977.65", "revision": 2, "sha256": "a71654da4b0e1b7ab2f8374e62ba5378decc5b7762953cdbe6946781d8e08c33", "published": true },
+      "linux-x64":   { "version": "152.0.7977.64", "revision": 2, "sha256": "cf26c55e86038eb33e1de607ade5619f0494188624b30bb508fa9429c0e98a17", "published": true },
       "linux-arm64": { "version": "152.0.7977.64", "revision": 1, "sha256": null, "published": false }
     }
   }

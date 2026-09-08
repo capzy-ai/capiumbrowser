@@ -62,6 +62,38 @@ function binaryVersionFor(tag) {
   return CAPIUM_BINARY_VERSIONS[tag] || DEFAULT_BINARY_VERSION;
 }
 
+function revisionsFromManifest() {
+  if (!STABLE) return {};
+  const out = {};
+  for (const [tag, entry] of Object.entries(STABLE)) {
+    if (entry && typeof entry === 'object' && Number.isInteger(entry.revision)) out[tag] = entry.revision;
+  }
+  return out;
+}
+
+// Re-spin variant per tag (>=1). Same Chromium version can be rebuilt (a stealth/fingerprint
+// change with no engine bump); each re-spin increments this. 1 = the base build.
+const CAPIUM_BINARY_REVISIONS = revisionsFromManifest();
+
+/**
+ * The re-spin variant (>=1) for a distro tag. 1 = the base build (suffix-less folder); 2,3,...
+ * are re-spins of the SAME Chromium version served from chromium-v<version>-r<N>/ (so a re-spin
+ * never overwrites the base artifact older SDKs still fetch). A version bump resets this to 1.
+ */
+function binaryRevisionFor(tag) {
+  return CAPIUM_BINARY_REVISIONS[tag] || 1;
+}
+
+/**
+ * Stable identity of one specific build = the R2 folder discriminator AND the install-cache key.
+ * revision 1 -> the version itself (chromium-v<version>/, the base build); N>=2 -> '<version>-r<N>'
+ * (chromium-v<version>-r<N>/). So a revision bump on an unchanged engine still re-downloads.
+ */
+function buildId(version, revision) {
+  const n = parseInt(revision, 10);
+  return !n || n < 2 ? version : `${version}-r${n}`;
+}
+
 /**
  * False only when the manifest declares the tag but marks it not-yet-published. Unknown
  * tags / missing manifest return true so the download layer's own error/404 speaks instead.
@@ -93,7 +125,10 @@ module.exports = {
   SDK_VERSION,
   CAPIUM_BINARY_VERSION,
   CAPIUM_BINARY_VERSIONS,
+  CAPIUM_BINARY_REVISIONS,
   binaryVersionFor,
+  binaryRevisionFor,
+  buildId,
   isPublished,
   hostTag,
   _FALLBACK_VERSIONS: FALLBACK_VERSIONS,

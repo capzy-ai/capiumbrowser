@@ -39,7 +39,7 @@ import zipfile
 
 from . import client as _license
 from ..errors import CapiumError, CapiumExpiredError, CapiumServerDownError
-from .._version import __version__, binary_version_for, is_published
+from .._version import __version__, binary_version_for, binary_revision_for, build_id, is_published
 
 _CHUNK = 1 << 16
 _NET_TIMEOUT = 300
@@ -87,15 +87,16 @@ def download_tag(system=None, machine=None):
     return tag
 
 
-def distro_path(version, tag):
+def distro_path(version, tag, revision=1):
     """The signed request path+query for this platform's current stable build.
 
-    The signed request path for a build: version in the folder, tag in the filename
-    (`/download/distro/chromium-v<version>/capiumbrowser-<tag>.tar.gz`). Per-OS versions work
-    because each tag lives under its own chromium-v<version>/ folder (win/mac .65 while linux
-    is .64). Key travels in the X-Capzy-License header, the path is HMAC-signed, and the bytes
-    are verified against the response's X-Capzy-SHA256."""
-    return "/download/distro/chromium-v%s/capiumbrowser-%s.tar.gz" % (version, tag)
+    version in the folder, tag in the filename:
+    `/download/distro/chromium-v<version>/capiumbrowser-<tag>.tar.gz`. A same-engine re-spin
+    (revision>=2) lands in its OWN immutable folder `chromium-v<version>-r<N>/`, so publishing a
+    re-spin never overwrites the base artifact older SDKs still fetch. Per-OS versions work
+    because each tag lives under its own folder (win/mac .65 while linux is .64). Key travels in
+    the X-Capzy-License header, the path is HMAC-signed, bytes verified against X-Capzy-SHA256."""
+    return "/download/distro/chromium-v%s/capiumbrowser-%s.tar.gz" % (build_id(version, revision), tag)
 
 
 # ---- extraction ------------------------------------------------------------------------------
@@ -260,14 +261,25 @@ def ensure_binary(version=None, license_key=None, server=None):
             "capium has no stable build published for %s yet (declared but not yet released). "
             "Set CAPIUM_VERSION to pin a specific build if one exists." % tag)
 
-    version = version or os.environ.get("CAPIUM_VERSION") or binary_version_for(tag)
+    env_ver = os.environ.get("CAPIUM_VERSION")
+    version = version or env_ver or binary_version_for(tag)
+    # A same Chromium version can be re-spun (r2, r3, ...). CAPIUM_REVISION overrides; an explicit
+    # CAPIUM_VERSION pin defaults to the base (r1) unless a revision is given; otherwise the per-OS
+    # revision comes from channels.json.
+    if os.environ.get("CAPIUM_REVISION"):
+        revision = int(os.environ["CAPIUM_REVISION"])
+    elif env_ver:
+        revision = 1
+    else:
+        revision = binary_revision_for(tag)
+    bid = build_id(version, revision)
 
-    # Reuse the cached binary ONLY if it's already the target version. A different (older)
-    # version -- e.g. after `pip install -U capiumbrowser` bumps this OS's pinned build -- falls
-    # through to fetch the new build and drop the old one.
+    # Reuse the cached binary ONLY if it's already this exact build (version + revision). A
+    # different build -- e.g. after `pip install -U capiumbrowser` bumps this OS's pinned build or
+    # re-spin -- falls through to fetch the new one and drop the old.
     try:
         existing = config.find_binary()
-        if _installed_version(existing) == version:
+        if _installed_version(existing) == bid:
             return existing
     except FileNotFoundError:
         pass
@@ -278,7 +290,7 @@ def ensure_binary(version=None, license_key=None, server=None):
     else:
         # Signed path-based download: key in a header, PATH HMAC-signed, sha256-verified.
         key, srv = _license.resolve(license_key, server)  # -> CapiumConfigError if no key
-        path = distro_path(version, tag)
+        path = distro_path(version, tag, revision)
         url = srv + path
         headers = _license.get_headers(key, path)
 
@@ -296,7 +308,7 @@ def ensure_binary(version=None, license_key=None, server=None):
         # Stamp the version marker into the distro dir BEFORE discovery: the FLAT Windows tar
         # carries no capium marker file, and find_binary only accepts a bare chrome.exe next to
         # one -- the downloader vouches for the directory it just extracted (mirrors the Node SDK).
-        _stamp_version(os.path.join(distro_dir, "chrome"), version)
+        _stamp_version(os.path.join(distro_dir, "chrome"), bid)
     finally:
         try:
             os.remove(tmp)
@@ -309,7 +321,7 @@ def ensure_binary(version=None, license_key=None, server=None):
         raise CapiumError(
             "downloaded and extracted the %s build but no launch target was found afterwards "
             "(unexpected archive layout under %s)." % (tag, root))
-    _stamp_version(binpath, version)  # so a later version bump knows to re-download
+    _stamp_version(binpath, bid)  # so a later version/revision bump knows to re-download
     # Re-apply exec bits the wrapper + engine binaries need (zip drops unix perms).
     for p in (binpath, os.path.join(os.path.dirname(binpath), "chrome")):
         try:

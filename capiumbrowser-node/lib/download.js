@@ -41,7 +41,7 @@ const tar = require('tar');
 const config = require('./config');
 const license = require('./license');
 const { CapiumError, CapiumExpiredError, CapiumServerDownError } = require('./errors');
-const { SDK_VERSION, binaryVersionFor, isPublished } = require('./version');
+const { SDK_VERSION, binaryVersionFor, binaryRevisionFor, buildId, isPublished } = require('./version');
 
 const NET_TIMEOUT_MS = 300000;
 const USER_AGENT = `capiumbrowser/${SDK_VERSION}`;
@@ -93,8 +93,10 @@ function downloadTag(system = null, machine = null) {
  * is .64). Key travels in the X-Capzy-License header, the path is HMAC-signed, and the bytes
  * are verified against the response's X-Capzy-SHA256.
  */
-function distroPath(version, tag) {
-  return `/download/distro/chromium-v${version}/capiumbrowser-${tag}.tar.gz`;
+function distroPath(version, tag, revision = 1) {
+  // A same-engine re-spin (revision>=2) lands in its own immutable folder
+  // chromium-v<version>-r<N>/, so publishing it never overwrites the base artifact older SDKs fetch.
+  return `/download/distro/chromium-v${buildId(version, revision)}/capiumbrowser-${tag}.tar.gz`;
 }
 
 // ---- extraction ------------------------------------------------------------------------------
@@ -289,14 +291,23 @@ async function ensureBinary({ version = null, licenseKey = null, server = null }
         'Set CAPIUM_VERSION to pin a specific build if one exists.');
   }
 
-  version = version || process.env.CAPIUM_VERSION || binaryVersionFor(tag);
+  const envVer = process.env.CAPIUM_VERSION;
+  version = version || envVer || binaryVersionFor(tag);
+  // A same Chromium version can be re-spun (r2, r3, ...). CAPIUM_REVISION overrides; an explicit
+  // CAPIUM_VERSION pin defaults to the base (r1) unless a revision is given; otherwise the per-OS
+  // revision comes from channels.json.
+  let revision;
+  if (process.env.CAPIUM_REVISION) revision = parseInt(process.env.CAPIUM_REVISION, 10);
+  else if (envVer) revision = 1;
+  else revision = binaryRevisionFor(tag);
+  const bid = buildId(version, revision);
 
-  // Reuse the cached binary ONLY if it's already the target version. A different (older)
-  // version -- e.g. after `npm install capiumbrowser@latest` bumps this OS's pinned build --
-  // falls through to fetch the new build and drop the old one.
+  // Reuse the cached binary ONLY if it's already this exact build (version + revision). A
+  // different build -- e.g. after `npm install capiumbrowser@latest` bumps this OS's pinned build
+  // or re-spin -- falls through to fetch the new one and drop the old.
   try {
     const existing = config.findBinary();
-    if (readInstalledVersion(existing) === version) return existing;
+    if (readInstalledVersion(existing) === bid) return existing;
   } catch {}
 
   let url;
@@ -307,7 +318,7 @@ async function ensureBinary({ version = null, licenseKey = null, server = null }
   } else {
     // Signed path-based download: key in a header, PATH HMAC-signed, sha256-verified.
     const { key, server: srv } = license.resolve(licenseKey, server); // -> CapiumConfigError if no key
-    const p = distroPath(version, tag);
+    const p = distroPath(version, tag, revision);
     url = srv + p;
     headers = license.getHeaders(key, p);
   }
@@ -327,7 +338,7 @@ async function ensureBinary({ version = null, licenseKey = null, server = null }
     // marker files, and findBinary only accepts a bare chrome.exe next to one -- the
     // downloader vouches for the directory it just extracted.
     try {
-      fs.writeFileSync(path.join(distroDir, MARKER), String(version));
+      fs.writeFileSync(path.join(distroDir, MARKER), String(bid));
     } catch {}
   } finally {
     try {
@@ -343,7 +354,7 @@ async function ensureBinary({ version = null, licenseKey = null, server = null }
       `downloaded and extracted the ${tag} build but no launch target was found afterwards ` +
         `(unexpected archive layout under ${root}).`);
   }
-  stampVersion(binPath, version); // so a later version bump knows to re-download
+  stampVersion(binPath, bid); // so a later version/revision bump knows to re-download
   // Re-apply exec bits the wrapper + engine binaries need (zip drops unix perms).
   if (process.platform !== 'win32') {
     for (const p of [binPath, path.join(path.dirname(binPath), 'chrome')]) {

@@ -158,22 +158,26 @@ header you can verify against the bytes.
 
 ### Platform tags & current versions
 
-| `<tag>` | `<version>` |
-| --- | --- |
-| `windows-x64` | `152.0.7977.65` |
-| `macos-arm64` | `152.0.7977.65` |
-| `linux-x64` | `152.0.7977.64` |
-| `linux-arm64` | *(coming soon)* |
+| `<tag>` | `<version>` | `<revision>` |
+| --- | --- | --- |
+| `windows-x64` | `152.0.7977.65` | `2` |
+| `macos-arm64` | `152.0.7977.65` | `2` |
+| `linux-x64` | `152.0.7977.64` | `2` |
+| `linux-arm64` | *(coming soon)* | — |
 
 The current stable version per platform is also in each [release's checksums](https://github.com/capzy-ai/capiumbrowser/releases).
+
+The R2 folder is `chromium-v<version>/` for **revision 1** (the base build) and `chromium-v<version>-r<N>/` for a **re-spin** (N ≥ 2 — a stealth/fingerprint update on the same Chromium engine). A re-spin is a *new* folder, so it never overwrites the base build that an older pinned SDK still fetches. The SDK picks the right folder automatically; for a raw download, read `<version>` + `<revision>` from the table (or the published `channels.json`) and build the folder as shown below.
 
 ### curl (bash)
 
 ```bash
 KEY="cap_your_key_here"
-VERSION="152.0.7977.65"          # see the table above
-TAG="windows-x64"                # windows-x64 | macos-arm64 | linux-x64 | linux-arm64
-REQ_PATH="/download/distro/chromium-v${VERSION}/capiumbrowser-${TAG}.tar.gz"
+VERSION="152.0.7977.65"; REVISION="2"   # see the table above
+TAG="windows-x64"                        # windows-x64 | macos-arm64 | linux-x64 | linux-arm64
+# base build = chromium-v<version>/ ; a re-spin (revision >= 2) = chromium-v<version>-r<N>/
+FOLDER="chromium-v${VERSION}"; [ "${REVISION}" -ge 2 ] && FOLDER="${FOLDER}-r${REVISION}"
+REQ_PATH="/download/distro/${FOLDER}/capiumbrowser-${TAG}.tar.gz"
 
 TS=$(date +%s)
 SIG=$(printf '%s' "${TS}.${REQ_PATH}" | openssl dgst -sha256 -hmac "${KEY}" | sed 's/^.*= //')
@@ -182,7 +186,7 @@ curl -fSL "https://license.capzy.ai${REQ_PATH}" \
   -H "X-Capzy-License: ${KEY}" \
   -H "X-Capzy-Timestamp: ${TS}" \
   -H "X-Capzy-Signature: ${SIG}" \
-  -H "User-Agent: capiumbrowser/1.0.0" \
+  -H "User-Agent: capiumbrowser/1.0.1" \
   -o "capiumbrowser-${TAG}.tar.gz"
 
 # verify (optional): compare against the X-Capzy-SHA256 header / the release checksums
@@ -198,8 +202,9 @@ const { pipeline } = require('stream/promises');
 const { Readable } = require('stream');
 
 const KEY = process.env.CAPIUM_LICENSE_KEY;
-const VERSION = '152.0.7977.65', TAG = 'windows-x64';
-const path = `/download/distro/chromium-v${VERSION}/capiumbrowser-${TAG}.tar.gz`;
+const VERSION = '152.0.7977.65', REVISION = 2, TAG = 'windows-x64';
+const folder = REVISION >= 2 ? `chromium-v${VERSION}-r${REVISION}` : `chromium-v${VERSION}`;
+const path = `/download/distro/${folder}/capiumbrowser-${TAG}.tar.gz`;
 
 const ts = String(Math.floor(Date.now() / 1000));
 const sig = crypto.createHmac('sha256', KEY).update(`${ts}.${path}`).digest('hex');
@@ -209,7 +214,7 @@ const res = await fetch(`https://license.capzy.ai${path}`, {
     'X-Capzy-License': KEY,
     'X-Capzy-Timestamp': ts,
     'X-Capzy-Signature': sig,
-    'User-Agent': 'capiumbrowser/1.0.0',
+    'User-Agent': 'capiumbrowser/1.0.1',
   },
 });
 await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`capiumbrowser-${TAG}.tar.gz`));
@@ -221,14 +226,15 @@ await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`capiumbrowser-$
 import hashlib, hmac, time, urllib.request
 
 KEY = "cap_your_key_here"
-VERSION, TAG = "152.0.7977.65", "windows-x64"
-path = f"/download/distro/chromium-v{VERSION}/capiumbrowser-{TAG}.tar.gz"
+VERSION, REVISION, TAG = "152.0.7977.65", 2, "windows-x64"
+folder = f"chromium-v{VERSION}-r{REVISION}" if REVISION >= 2 else f"chromium-v{VERSION}"
+path = f"/download/distro/{folder}/capiumbrowser-{TAG}.tar.gz"
 
 ts = str(int(time.time()))
 sig = hmac.new(KEY.encode(), f"{ts}.{path}".encode(), hashlib.sha256).hexdigest()
 req = urllib.request.Request("https://license.capzy.ai" + path, headers={
     "X-Capzy-License": KEY, "X-Capzy-Timestamp": ts, "X-Capzy-Signature": sig,
-    "User-Agent": "capiumbrowser/1.0.0",
+    "User-Agent": "capiumbrowser/1.0.1",
 })
 with urllib.request.urlopen(req) as r, open(f"capiumbrowser-{TAG}.tar.gz", "wb") as f:
     f.write(r.read())
