@@ -1,25 +1,25 @@
 {
   "_comment": "SINGLE SOURCE OF TRUTH for the current stable Capium browser build per OS/arch. Each OS reaches stable independently -- edit one entry without touching the others. This file ships inside the wheel (the SDK reads it to pick each host's stable build) AND is published to the download server by the release pipeline. `version` is the Chromium base; `revision` is the re-spin counter -- the served R2 folder is chromium-v<version>/ for revision 1 (the base build) and chromium-v<version>-r<N>/ for a re-spin (N>=2), so publishing a re-spin never overwrites the base artifact older SDKs still fetch. `published: false` means the tag is declared but no artifact exists yet -- the SDK raises a clear 'not published yet' error instead of a raw 404.",
   "schema": 1,
-  "updated": "2026-09-19",
+  "updated": "2026-09-24",
   "channels": {
     "stable": {
       "windows-x64": {
         "version": "152.0.7977.82",
-        "revision": 2,
-        "sha256": "bcf2f3c9bea5feef5708ad6e9f9e7d89683f7d6f6757563c0249c53ab2c9216a",
+        "revision": 3,
+        "sha256": "7172b2fdd62cbbfa2619428eca44a2c2fc614b859ce3e51bafef95ad759d4ef0",
         "published": true
       },
       "macos-arm64": {
         "version": "152.0.7977.82",
-        "revision": 2,
-        "sha256": "aa65b344c55a2c482903d019811cae8a56a6ad225d103aa9f4aacc77fe76b618",
+        "revision": 3,
+        "sha256": "4196dcc7687f11390a095b5f3c5aae091a7480306f63cdd9df86ad1267b421d8",
         "published": true
       },
       "linux-x64": {
         "version": "152.0.7977.82",
-        "revision": 2,
-        "sha256": "438eed4d5e8bc35fb605c4710c4e30b71f84a406cb61f63f2bff3d22313a1e58",
+        "revision": 3,
+        "sha256": "cd95ced9f03f571d9b3af419cd46949ca850968daa29c3bebdeaabeb9a412972",
         "published": true
       },
       "linux-arm64": {
