@@ -1,6 +1,6 @@
 {
   "name": "capiumbrowser",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Drop-in stealth browser SDK on top of Playwright or Puppeteer (Capium Chromium).",
   "license": "SEE LICENSE IN LICENSE",
   "author": "Capzy (https://capzy.ai)",

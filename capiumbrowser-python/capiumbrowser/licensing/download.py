@@ -204,7 +204,7 @@ def _download(url, headers, dest, version, tag):
     h = hashlib.sha256()
     expected = None
     try:
-        with urllib.request.urlopen(req, timeout=_NET_TIMEOUT) as resp, open(dest, "wb") as f:
+        with urllib.request.urlopen(req, timeout=_NET_TIMEOUT, context=_license._ssl_context()) as resp, open(dest, "wb") as f:
             expected = resp.headers.get("X-Capzy-SHA256")
             while True:
                 chunk = resp.read(_CHUNK)

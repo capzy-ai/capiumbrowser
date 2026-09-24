@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "capiumbrowser"
-version = "1.0.2"
+version = "1.0.3"
 description = "Drop-in stealth browser SDK on top of Playwright (Capium Chromium)."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -24,6 +24,9 @@ classifiers = [
 #   pip install -U playwright
 dependencies = [
     "playwright>=1.40",
+    # certifi ships a CA bundle so the binary download over HTTPS works on a fresh
+    # macOS/python.org Python (empty system trust store) without any manual cert setup.
+    "certifi>=2020.6.20",
 ]
 
 [project.urls]

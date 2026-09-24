@@ -12,6 +12,7 @@ import json
 import os
 import platform
 import socket
+import ssl
 import subprocess
 import time
 import urllib.error
@@ -23,6 +24,18 @@ from .._version import __version__
 DEFAULT_SERVER = "https://license.capzy.ai"
 _LICENSE_FILE = os.path.join(os.path.expanduser("~"), ".capium", "license")
 _USER_AGENT = "capiumbrowser/%s" % __version__
+
+
+def _ssl_context():
+    """TLS context that trusts certifi's CA bundle, so HTTPS works on a fresh
+    macOS/python.org Python (whose system trust store is empty and otherwise
+    fails with 'unable to get local issuer certificate'). Falls back to the
+    stdlib default context if certifi isn't importable."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
 
 
 def _from_file():
@@ -147,7 +160,7 @@ def status(key=None, server=None):
                  "X-Capzy-Signature": sig, "Content-Type": "application/json",
                  "User-Agent": _USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=10, context=_ssl_context()) as r:
             data = json.loads(r.read())
     except urllib.error.HTTPError as e:
         if e.code in (401, 403):
