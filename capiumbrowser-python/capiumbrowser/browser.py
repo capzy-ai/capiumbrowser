@@ -15,6 +15,7 @@ coherence is resolved inside the binary via the --geoip flag (no SDK-side probe)
 """
 import atexit
 import os
+import sys
 import tempfile
 
 from playwright.sync_api import sync_playwright
@@ -26,12 +27,29 @@ from .errors import translate_launch_error, read_launch_status
 
 
 def _resolve_binary(binary, license_key=None):
-    """Find the capium wrapper; if absent, try to download it (see licensing.download)."""
-    try:
+    """Find the capium wrapper; if absent OR stale, download the current build.
+
+    A binary is only launched if its stamped build_id matches the current target for this host.
+    Otherwise a stale binary left by an earlier install (older revision -> older device pool /
+    pre-fix fingerprint) would be launched silently even after `pip install -U`, still tripping
+    detection. Discovery preferring 'any binary present' over 'the correct one' is exactly that
+    trap; here we verify the build and re-fetch on a mismatch."""
+    from .licensing import download as _download
+    # Explicit override (arg or CAPIUM_BINARY) wins with no version check -- the caller's choice.
+    if binary or os.environ.get("CAPIUM_BINARY"):
         return config.find_binary(binary)
+    want = _download.expected_build_id()
+    try:
+        found = config.find_binary()
+        have = _download.installed_version(found)
+        if want is None or have == want:
+            return found
+        sys.stderr.write(
+            "capium: ignoring stale binary at %s (build %s; current target %s) and fetching the "
+            "current build. Delete it or set CAPIUM_BINARY to silence this.\n" % (found, have, want))
     except FileNotFoundError:
-        from .licensing import download as _download
-        return _download.ensure_binary(license_key=license_key)
+        pass
+    return _download.ensure_binary(license_key=license_key)
 
 
 def _new_status_file(env):

@@ -193,6 +193,38 @@ function stampVersion(binPath, version) {
 }
 
 /**
+ * The buildId (`<version>` or `<version>-r<N>`) this host SHOULD run, honoring CAPIUM_* env, or
+ * null if it can't be determined (CAPIUM_BINARY override / unsupported platform / bad manifest).
+ * Lets the launch path detect+reject a stale binary from an earlier install instead of running it.
+ */
+function expectedBuildId() {
+  if (process.env.CAPIUM_BINARY) return null;
+  try {
+    const tag = downloadTag();
+    const envVer = process.env.CAPIUM_VERSION;
+    const version = envVer || binaryVersionFor(tag);
+    let revision;
+    if (process.env.CAPIUM_REVISION) revision = parseInt(process.env.CAPIUM_REVISION, 10);
+    else if (envVer) revision = 1;
+    else revision = binaryRevisionFor(tag);
+    return buildId(version, revision);
+  } catch {
+    return null;
+  }
+}
+
+/** The launch wrapper inside a just-extracted distro dir, or null (scoped, never a global search). */
+function wrapperIn(distroDir) {
+  for (const nm of config._wrapperNames()) {
+    const p = path.join(distroDir, nm);
+    try {
+      if (fs.statSync(p).isFile()) return p;
+    } catch {}
+  }
+  return null;
+}
+
+/**
  * Delete previously-extracted capium distros under `root`. A host only ever holds its own
  * platform's build, so on a version change we drop the stale one before installing the new
  * one ('old removed, new downloaded'). Never touches CAPIUM_BINARY / PATH targets outside
@@ -328,12 +360,13 @@ async function ensureBinary({ version = null, licenseKey = null, server = null }
   const subdir = `capium-${String(version).split('.')[0]}-${tag}`; // FLAT-archive wrapper name
   const tmp = path.join(os.tmpdir(),
     `capium-dl-${crypto.randomBytes(6).toString('hex')}.tar.gz`);
+  let distroDir = null;
   try {
     await download(url, headers, tmp, version, tag);
     // Only drop the stale install once the new bytes are in hand (a failed download must
     // never leave the host with no binary), then extract the new version.
     removeInstalls(root);
-    const distroDir = await extract(tmp, root, subdir);
+    distroDir = await extract(tmp, root, subdir);
     // Stamp the version marker BEFORE discovery: the FLAT Windows tar carries no capium
     // marker files, and findBinary only accepts a bare chrome.exe next to one -- the
     // downloader vouches for the directory it just extracted.
@@ -346,13 +379,17 @@ async function ensureBinary({ version = null, licenseKey = null, server = null }
     } catch {}
   }
 
-  let binPath;
-  try {
-    binPath = config.findBinary();
-  } catch {
-    throw new CapiumError(
-      `downloaded and extracted the ${tag} build but no launch target was found afterwards ` +
-        `(unexpected archive layout under ${root}).`);
+  // Return the binary we JUST extracted (scoped to distroDir), never a global findBinary here --
+  // a stale binary in another base could otherwise be returned instead of the fresh build.
+  let binPath = wrapperIn(distroDir);
+  if (!binPath) {
+    try {
+      binPath = config.findBinary();
+    } catch {
+      throw new CapiumError(
+        `downloaded and extracted the ${tag} build but no launch target was found afterwards ` +
+          `(unexpected archive layout under ${root}).`);
+    }
   }
   stampVersion(binPath, bid); // so a later version/revision bump knows to re-download
   // Re-apply exec bits the wrapper + engine binaries need (zip drops unix perms).
@@ -372,6 +409,7 @@ module.exports = {
   destRoot,
   ensureBinary,
   installedVersion,
+  expectedBuildId,
   _SUPPORTED: SUPPORTED,
   _normOs: normOs,
   _normArch: normArch,

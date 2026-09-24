@@ -6,20 +6,20 @@
     "stable": {
       "windows-x64": {
         "version": "152.0.7977.82",
-        "revision": 3,
+        "revision": 4,
         "sha256": "7172b2fdd62cbbfa2619428eca44a2c2fc614b859ce3e51bafef95ad759d4ef0",
         "published": true
       },
       "macos-arm64": {
         "version": "152.0.7977.82",
-        "revision": 3,
+        "revision": 4,
         "sha256": "4196dcc7687f11390a095b5f3c5aae091a7480306f63cdd9df86ad1267b421d8",
         "published": true
       },
       "linux-x64": {
         "version": "152.0.7977.82",
-        "revision": 3,
-        "sha256": "cd95ced9f03f571d9b3af419cd46949ca850968daa29c3bebdeaabeb9a412972",
+        "revision": 4,
+        "sha256": "e4e052da580e300b0097c057445fff3ae865339dd93fd71ec96092dcfb1e7218",
         "published": true
       },
       "linux-arm64": {

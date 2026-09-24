@@ -45,12 +45,23 @@ function requireDriver() {
 }
 
 async function resolveBinary(binary, licenseKey) {
+  // Explicit override (arg or CAPIUM_BINARY) wins with no version check -- the caller's choice.
+  if (binary || process.env.CAPIUM_BINARY) return config.findBinary(binary);
+  // Otherwise the discovered binary must be the CURRENT target build. A stale binary left by an
+  // earlier install (older revision -> older device pool / pre-fix fingerprint) must never be
+  // launched silently even after `npm i -U` -- it still trips detection. Re-fetch on a mismatch.
+  const want = download.expectedBuildId();
   try {
-    return config.findBinary(binary);
+    const found = config.findBinary();
+    const have = download.installedVersion(found);
+    if (want === null || have === want) return found;
+    process.stderr.write(
+      `capium: ignoring stale binary at ${found} (build ${have}; current target ${want}) and ` +
+        `fetching the current build. Delete it or set CAPIUM_BINARY to silence this.\n`);
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
-    return download.ensureBinary({ licenseKey });
   }
+  return download.ensureBinary({ licenseKey });
 }
 
 async function prepare(opts) {

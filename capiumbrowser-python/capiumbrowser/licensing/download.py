@@ -181,6 +181,40 @@ def _stamp_version(binpath, version):
         pass
 
 
+def expected_build_id():
+    """The build_id (`<version>` or `<version>-r<N>`) this host SHOULD be running, honoring the
+    CAPIUM_* env, or None if it can't be determined here (CAPIUM_BINARY override / unsupported
+    platform / manifest unreadable). Lets the launch path detect+reject a stale binary left by
+    an earlier install instead of silently running it."""
+    if os.environ.get("CAPIUM_BINARY"):
+        return None
+    try:
+        tag = download_tag()
+        env_ver = os.environ.get("CAPIUM_VERSION")
+        version = env_ver or binary_version_for(tag)
+        if os.environ.get("CAPIUM_REVISION"):
+            revision = int(os.environ["CAPIUM_REVISION"])
+        elif env_ver:
+            revision = 1
+        else:
+            revision = binary_revision_for(tag)
+        return build_id(version, revision)
+    except Exception:
+        return None
+
+
+def _wrapper_in(distro_dir):
+    """The launch wrapper inside a just-extracted distro dir, or None. Used post-download so we
+    return the EXACT binary we extracted -- never a global search that could surface a stale
+    binary from another install/base."""
+    from .. import config
+    for nm in config._wrapper_names():
+        p = os.path.join(distro_dir, nm)
+        if os.path.isfile(p):
+            return p
+    return None
+
+
 def _remove_installs(root):
     """Delete previously-extracted capium distros under `root`. A host only ever holds its own
     platform's build, so on a version change we drop the stale one before installing the new one
@@ -315,12 +349,16 @@ def ensure_binary(version=None, license_key=None, server=None):
         except OSError:
             pass
 
-    try:
-        binpath = config.find_binary()
-    except FileNotFoundError:
-        raise CapiumError(
-            "downloaded and extracted the %s build but no launch target was found afterwards "
-            "(unexpected archive layout under %s)." % (tag, root))
+    # Return the binary we JUST extracted (scoped to distro_dir), never a global find_binary here
+    # -- a stale binary in another base could otherwise be returned instead of the fresh build.
+    binpath = _wrapper_in(distro_dir)
+    if not binpath:
+        try:
+            binpath = config.find_binary()
+        except FileNotFoundError:
+            raise CapiumError(
+                "downloaded and extracted the %s build but no launch target was found afterwards "
+                "(unexpected archive layout under %s)." % (tag, root))
     _stamp_version(binpath, bid)  # so a later version/revision bump knows to re-download
     # Re-apply exec bits the wrapper + engine binaries need (zip drops unix perms).
     for p in (binpath, os.path.join(os.path.dirname(binpath), "chrome")):
