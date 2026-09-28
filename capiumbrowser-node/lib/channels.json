@@ -7,15 +7,15 @@
       "windows-x64": {
         "version": "153.0.8010.53",
         "engine_version": "153.0.8010.52",
-        "revision": 1,
-        "sha256": "6eaea779c665335ffa8585f437527bb5124b72fc730b373bb53d23145fa33026",
+        "revision": 2,
+        "sha256": "28be2151dfdb56963d081a5b8bfbfca1daed014f22ff6a3af9404a091a557ca6",
         "published": true
       },
       "macos-arm64": {
         "version": "153.0.8010.53",
         "engine_version": "153.0.8010.52",
-        "revision": 1,
-        "sha256": "a8901553c8c7eabf3b08106bc3784dd270280c82be8484cac800838c41dca40d",
+        "revision": 2,
+        "sha256": "ec8f44b2d07b33659c616761bdf31539b75b11b6bac434c60ad126d14442277b",
         "published": true
       },
       "linux-x64": {
