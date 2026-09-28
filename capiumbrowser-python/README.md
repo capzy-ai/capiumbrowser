@@ -247,10 +247,10 @@ The spoofing lives in the compiled binary — not injected via JavaScript, not s
 aligned to a single coherent story.
 
 **Download mechanics.** The binary is fetched from the license service with a signed, path-based GET
-(`/download/distro/chromium-v<version>/capiumbrowser-<os>-<arch>.tar.gz`): the key travels in the
+(`/download/distro/chromium-v<version>.<revision>/capiumbrowser-<os>-<arch>.tar.gz`): the key travels in the
 `X-Capzy-License` header (never the URL) and the request path is HMAC-signed. The response's
 `X-Capzy-SHA256` is verified against the streamed bytes before extraction, so a corrupted or tampered
-archive is rejected. The **filename is version-independent** — only the `chromium-v<version>/` folder
+archive is rejected. The **filename is version-independent** — only the `chromium-v<version>.<revision>/` folder
 changes. Env overrides: `CAPIUM_LICENSE_KEY` (or `~/.capium/license`), `CAPIUM_VERSION` (target a specific
 build), `CAPIUM_BINARY` (use an exact local binary, skip download), `CAPIUM_DOWNLOAD_URL` (unsigned direct
 URL escape hatch), `CAPIUM_HOME` (where builds cache). A missing platform, an unpublished version (404), a

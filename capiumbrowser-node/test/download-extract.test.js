@@ -65,8 +65,8 @@ test('version stamp roundtrip and marker fallback', () => {
   const bin = path.join(dir, 'capium');
   fs.writeFileSync(bin, 'x');
   assert.equal(download._readInstalledVersion(bin), null); // pre-stamp install -> unknown
-  download._stampVersion(bin, '152.0.7977.64');
-  assert.equal(download._readInstalledVersion(bin), '152.0.7977.64');
+  download._stampVersion(bin, '153.0.8010.52');
+  assert.equal(download._readInstalledVersion(bin), '153.0.8010.52');
 });
 
 test('removeInstalls drops only capium-* dirs under root', () => {

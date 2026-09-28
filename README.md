@@ -142,7 +142,7 @@ caching, or your own tooling**, you can pull a specific build's `.tar.gz` straig
 ### The request
 
 ```
-GET https://license.capzy.ai/download/distro/chromium-v<version>/capiumbrowser-<tag>.tar.gz
+GET https://license.capzy.ai/download/distro/chromium-v<version>.<revision>/capiumbrowser-<tag>.tar.gz
 ```
 
 Authenticated with your license key plus a short HMAC signature over the request path — three headers:
@@ -158,24 +158,27 @@ header you can verify against the bytes.
 
 ### Platform tags & current versions
 
-| `<tag>` | `<version>` |
-| --- | --- |
-| `windows-x64` | `152.0.7977.82` |
-| `macos-arm64` | `152.0.7977.82` |
-| `linux-x64` | `152.0.7977.82` |
-| `linux-arm64` | *(coming soon)* |
+| `<tag>` | `<version>` | `<revision>` |
+| --- | --- | --- |
+| `windows-x64` | `153.0.8010.53` | `1` |
+| `macos-arm64` | `153.0.8010.53` | `1` |
+| `linux-x64` | `153.0.8010.52` | `1` |
+| `linux-arm64` | *(coming soon)* | |
+
+> `<version>` is the version the browser reports for that platform — Windows and macOS are `153.0.8010.53` (the current Win/Mac stable patch), Linux is `153.0.8010.52`. The download folder matches it (`chromium-v<version>.<revision>/`). All three are built on the same `153.0.8010.52` Chromium engine; Win/Mac just report the `.53` patch.
 
 The current stable version per platform is also in each [release's checksums](https://github.com/capzy-ai/capiumbrowser/releases).
 
-The R2 folder is `chromium-v<version>/`. Folders are immutable — a new build ships in its own version folder, so an older pinned SDK keeps fetching the build it was installed with. The SDK picks the right folder automatically; for a raw download, read `<version>` from the table (or the published `channels.json`) and build the folder as shown below.
+The R2 folder is `chromium-v<version>.<revision>/` — the packaging **revision** is always a dotted suffix starting at `.1` (e.g. `chromium-v153.0.8010.53.1/`; a same-engine re-spin is `.2`, `.3`, …). The revision only names our artifact — the browser still reports its real Chrome `<version>`. Folders are immutable, so a re-spin never overwrites the artifact an older pinned SDK keeps fetching. The SDK picks the right folder automatically; for a raw download, read `<version>` and `<revision>` from the table (or the published `channels.json`) and build the folder as shown below.
 
 ### curl (bash)
 
 ```bash
 KEY="cap_your_key_here"
-VERSION="152.0.7977.82"                  # see the table above
+VERSION="153.0.8010.53"                  # build/artifact version -- see the table above
+REVISION="1"                             # packaging revision (dotted suffix, starts at 1)
 TAG="windows-x64"                        # windows-x64 | macos-arm64 | linux-x64 | linux-arm64
-REQ_PATH="/download/distro/chromium-v${VERSION}/capiumbrowser-${TAG}.tar.gz"
+REQ_PATH="/download/distro/chromium-v${VERSION}.${REVISION}/capiumbrowser-${TAG}.tar.gz"
 
 TS=$(date +%s)
 SIG=$(printf '%s' "${TS}.${REQ_PATH}" | openssl dgst -sha256 -hmac "${KEY}" | sed 's/^.*= //')
@@ -184,7 +187,7 @@ curl -fSL "https://license.capzy.ai${REQ_PATH}" \
   -H "X-Capzy-License: ${KEY}" \
   -H "X-Capzy-Timestamp: ${TS}" \
   -H "X-Capzy-Signature: ${SIG}" \
-  -H "User-Agent: capiumbrowser/1.0.2" \
+  -H "User-Agent: capiumbrowser/1.1.0" \
   -o "capiumbrowser-${TAG}.tar.gz"
 
 # verify (optional): compare against the X-Capzy-SHA256 header / the release checksums
@@ -200,8 +203,8 @@ const { pipeline } = require('stream/promises');
 const { Readable } = require('stream');
 
 const KEY = process.env.CAPIUM_LICENSE_KEY;
-const VERSION = '152.0.7977.82', TAG = 'windows-x64';
-const path = `/download/distro/chromium-v${VERSION}/capiumbrowser-${TAG}.tar.gz`;
+const VERSION = '153.0.8010.53', REVISION = '1', TAG = 'windows-x64';
+const path = `/download/distro/chromium-v${VERSION}.${REVISION}/capiumbrowser-${TAG}.tar.gz`;
 
 const ts = String(Math.floor(Date.now() / 1000));
 const sig = crypto.createHmac('sha256', KEY).update(`${ts}.${path}`).digest('hex');
@@ -211,7 +214,7 @@ const res = await fetch(`https://license.capzy.ai${path}`, {
     'X-Capzy-License': KEY,
     'X-Capzy-Timestamp': ts,
     'X-Capzy-Signature': sig,
-    'User-Agent': 'capiumbrowser/1.0.2',
+    'User-Agent': 'capiumbrowser/1.1.0',
   },
 });
 await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`capiumbrowser-${TAG}.tar.gz`));
@@ -223,14 +226,14 @@ await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`capiumbrowser-$
 import hashlib, hmac, time, urllib.request
 
 KEY = "cap_your_key_here"
-VERSION, TAG = "152.0.7977.82", "windows-x64"
-path = f"/download/distro/chromium-v{VERSION}/capiumbrowser-{TAG}.tar.gz"
+VERSION, REVISION, TAG = "153.0.8010.53", "1", "windows-x64"
+path = f"/download/distro/chromium-v{VERSION}.{REVISION}/capiumbrowser-{TAG}.tar.gz"
 
 ts = str(int(time.time()))
 sig = hmac.new(KEY.encode(), f"{ts}.{path}".encode(), hashlib.sha256).hexdigest()
 req = urllib.request.Request("https://license.capzy.ai" + path, headers={
     "X-Capzy-License": KEY, "X-Capzy-Timestamp": ts, "X-Capzy-Signature": sig,
-    "User-Agent": "capiumbrowser/1.0.2",
+    "User-Agent": "capiumbrowser/1.1.0",
 })
 with urllib.request.urlopen(req) as r, open(f"capiumbrowser-{TAG}.tar.gz", "wb") as f:
     f.write(r.read())
@@ -393,10 +396,10 @@ The spoofing lives in the compiled binary — not injected via JavaScript, not s
 aligned to a single coherent story.
 
 **Download mechanics.** The binary is fetched from the license service with a signed, path-based GET
-(`/download/distro/chromium-v<version>/capiumbrowser-<os>-<arch>.tar.gz`): the key travels in the
+(`/download/distro/chromium-v<version>.<revision>/capiumbrowser-<os>-<arch>.tar.gz`): the key travels in the
 `X-Capzy-License` header (never the URL) and the request path is HMAC-signed. The response's
 `X-Capzy-SHA256` is verified against the streamed bytes before extraction, so a corrupted or tampered
-archive is rejected. The **filename is version-independent** — only the `chromium-v<version>/` folder
+archive is rejected. The **filename is version-independent** — only the `chromium-v<version>.<revision>/` folder
 changes. Env overrides: `CAPIUM_LICENSE_KEY` (or `~/.capium/license`), `CAPIUM_VERSION` (target a specific
 build), `CAPIUM_BINARY` (use an exact local binary, skip download), `CAPIUM_DOWNLOAD_URL` (unsigned direct
 URL escape hatch), `CAPIUM_HOME` (where builds cache). A missing platform, an unpublished version (404), a
@@ -925,6 +928,11 @@ rewrites fingerprints in the Chromium source and compiles them in — there's no
 to detect than config-level ones, and Capium rebases onto new Chromium and ships updates as detection evolves.
 
 **Can I use my own proxy?** Yes — HTTP/HTTPS and SOCKS5 are supported natively. Bring your own.
+
+**Does DRM streaming (Netflix/Spotify/Prime) work?** Not out of the box. Capium ships without the
+proprietary Widevine CDM — it can't be legally redistributed, and bundling it trips one FingerprintJS
+Pro anti-detect signal. If you need DRM playback you can install Widevine yourself; see
+[docs/WIDEVINE.md](../docs/WIDEVINE.md) (note the trade-off documented there).
 
 ---
 

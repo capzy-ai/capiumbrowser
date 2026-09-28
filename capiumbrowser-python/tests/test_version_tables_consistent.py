@@ -9,7 +9,8 @@ import re
 
 import pytest
 
-_REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# repo root is 4 levels up: tests/ -> capiumbrowser-python/ -> capiumbrowser/ -> <repo>
+_REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 _FP_DATA = os.path.join(_REPO, "src", "components", "ungoogled", "fingerprint_data.h")
 _UAUTILS = os.path.join(_REPO, "src", "components", "embedder_support", "user_agent_utils.cc")
 _INC = os.path.join(_REPO, "src", "third_party", "blink", "common", "user_agent",

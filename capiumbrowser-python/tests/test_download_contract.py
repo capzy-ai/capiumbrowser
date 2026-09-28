@@ -32,7 +32,11 @@ def test_unsupported_platforms_raise():
 
 
 def test_distro_path_shape():
+    # Packaging revision is always a dotted suffix; default revision 1 -> <version>.1
     p = download.distro_path("152.0.7977.65", "windows-x64")
-    assert p == "/download/distro/chromium-v152.0.7977.65/capiumbrowser-windows-x64.tar.gz"
+    assert p == "/download/distro/chromium-v152.0.7977.65.1/capiumbrowser-windows-x64.tar.gz"
     assert "capiumbrowser-windows-x64.tar.gz" in p
-    assert "chromium-v152.0.7977.65/" in p
+    assert "chromium-v152.0.7977.65.1/" in p
+    # a re-spin lands in its own .N folder
+    assert download.distro_path("152.0.7977.65", "windows-x64", 2) == \
+        "/download/distro/chromium-v152.0.7977.65.2/capiumbrowser-windows-x64.tar.gz"

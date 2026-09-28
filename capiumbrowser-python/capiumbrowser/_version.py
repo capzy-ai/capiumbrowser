@@ -17,17 +17,17 @@ import json
 import os
 import platform as _platform
 
-__version__ = "1.0.5"
+__version__ = "1.1.0"
 
 # Used only if channels.json can't be read (corrupt/removed install). ensure_binary() raises a
 # clear error long before the "unsupported platform" case matters; this keeps lookups total.
 _FALLBACK_VERSIONS = {
-    "windows-x64": "152.0.7977.65",  # real Chrome 152 stable per OS (win/mac .65, linux .64)
-    "macos-arm64": "152.0.7977.65",
-    "linux-x64":   "152.0.7977.64",
-    "linux-arm64": "152.0.7977.64",  # declared; not yet published (see channels.json)
+    "windows-x64": "153.0.8010.52",  # real Chrome 152 stable per OS (win/mac .65, linux .64)
+    "macos-arm64": "153.0.8010.52",
+    "linux-x64":   "153.0.8010.52",
+    "linux-arm64": "153.0.8010.52",  # declared; not yet published (see channels.json)
 }
-_DEFAULT_BINARY_VERSION = "152.0.7977.65"
+_DEFAULT_BINARY_VERSION = "153.0.8010.52"
 
 
 def _load_stable():
@@ -72,28 +72,33 @@ CAPIUM_BINARY_REVISIONS = _revisions_from_manifest()
 
 
 def binary_revision_for(tag):
-    """The re-spin variant (>=1) for a distro tag. 1 = the base build served from the
-    suffix-less folder; 2,3,... are re-spins of the SAME Chromium version served from
-    chromium-v<version>-r<N>/ (so a re-spin never overwrites the base artifact on R2).
+    """The packaging revision (>=1) for a distro tag. 1 = the first build, served from
+    chromium-v<version>.1/; 2,3,... are re-spins of the SAME Chromium version served from
+    chromium-v<version>.2/ etc. (so a re-spin never overwrites the artifact on R2).
 
-    A re-spin (r2, r3, ...) is the exception -- a stealth/fingerprint change on an unchanged
+    A re-spin (.2, .3, ...) is the exception -- a stealth/fingerprint change on an unchanged
     engine. The normal path forward is a Chromium version bump, which yields a fresh
-    chromium-v<newversion>/ base folder on its own (revision resets to 1)."""
+    chromium-v<newversion>.1/ folder on its own (revision resets to 1)."""
     return CAPIUM_BINARY_REVISIONS.get(tag, 1)
 
 
 def build_id(version, revision):
     """Stable identity of one specific build = the R2 folder discriminator.
 
-    revision 1 -> the version itself (chromium-v<version>/, no suffix -- the base build);
-    revision N>=2 -> '<version>-r<N>' (chromium-v<version>-r<N>/, a same-engine re-spin).
+    The packaging revision is ALWAYS a dotted suffix starting at 1:
+    revision 1 -> '<version>.1' (chromium-v<version>.1/, the first build);
+    revision N -> '<version>.N' (chromium-v<version>.N/, a same-engine re-spin).
     Used for BOTH the download folder and the install-cache key, so a revision bump on an
-    unchanged Chromium version still re-downloads instead of reusing the stale base build."""
+    unchanged Chromium version still re-downloads instead of reusing the stale build.
+    NOTE: the customer's reported Chrome version is unchanged -- this suffix only names our
+    distro/upload/download artifact, not the browser version."""
     try:
         n = int(revision)
     except (TypeError, ValueError):
         n = 1
-    return version if n < 2 else "%s-r%d" % (version, n)
+    if n < 1:
+        n = 1
+    return "%s.%d" % (version, n)
 
 
 def is_published(tag):

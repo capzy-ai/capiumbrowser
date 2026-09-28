@@ -7,7 +7,7 @@ matching Capium build separately. If the launch target isn't found locally, ensu
 downloads the per-platform tarball and extracts it next to the package.
 
 Download scheme (signed, path-based):
-    GET {server}/download/distro/chromium-v{version}/capiumbrowser-{os}-{arch}.tar.gz
+    GET {server}/download/distro/chromium-v{version}.{revision}/capiumbrowser-{os}-{arch}.tar.gz
 
 The license key travels in the X-Capzy-License header (over TLS), NEVER in the URL; the request
 PATH is HMAC-signed (X-Capzy-Timestamp + X-Capzy-Signature = HMAC-SHA256(key, "<ts>.<path>")) —
@@ -15,7 +15,7 @@ the same scheme as the licensing calls. The response's X-Capzy-SHA256 is verifie
 downloaded bytes before anything is extracted.
 
 The archive FILENAME is version-independent -- `capiumbrowser-<os>-<arch>.tar.gz` is always the
-same; only the `chromium-v<version>/` folder changes.
+same; only the `chromium-v<version>.<revision>/` folder changes.
 
 Source resolution (first that works):
     CAPIUM_BINARY            -> use this exact launch target, no download
@@ -91,9 +91,9 @@ def distro_path(version, tag, revision=1):
     """The signed request path+query for this platform's current stable build.
 
     version in the folder, tag in the filename:
-    `/download/distro/chromium-v<version>/capiumbrowser-<tag>.tar.gz`. A same-engine re-spin
-    (revision>=2) lands in its OWN immutable folder `chromium-v<version>-r<N>/`, so publishing a
-    re-spin never overwrites the base artifact older SDKs still fetch. Per-OS versions work
+    `/download/distro/chromium-v<version>.<revision>/capiumbrowser-<tag>.tar.gz` (revision always
+    dotted-suffixed, >=1). Each revision lands in its OWN immutable folder `chromium-v<version>.<N>/`,
+    so publishing a re-spin never overwrites the artifact older SDKs still fetch. Per-OS versions work
     because each tag lives under its own folder (win/mac .65 while linux is .64). Key travels in
     the X-Capzy-License header, the path is HMAC-signed, bytes verified against X-Capzy-SHA256."""
     return "/download/distro/chromium-v%s/capiumbrowser-%s.tar.gz" % (build_id(version, revision), tag)
@@ -182,7 +182,7 @@ def _stamp_version(binpath, version):
 
 
 def expected_build_id():
-    """The build_id (`<version>` or `<version>-r<N>`) this host SHOULD be running, honoring the
+    """The build_id (`<version>.<N>`) this host SHOULD be running, honoring the
     CAPIUM_* env, or None if it can't be determined here (CAPIUM_BINARY override / unsupported
     platform / manifest unreadable). Lets the launch path detect+reject a stale binary left by
     an earlier install instead of silently running it."""
@@ -298,8 +298,8 @@ def ensure_binary(version=None, license_key=None, server=None):
     env_ver = os.environ.get("CAPIUM_VERSION")
     version = version or env_ver or binary_version_for(tag)
     # A same Chromium version can be re-spun (r2, r3, ...). CAPIUM_REVISION overrides; an explicit
-    # CAPIUM_VERSION pin defaults to the base (r1) unless a revision is given; otherwise the per-OS
-    # revision comes from channels.json.
+    # CAPIUM_VERSION pin defaults to revision 1 (<version>.1) unless a revision is given;
+    # otherwise the per-OS revision comes from channels.json.
     if os.environ.get("CAPIUM_REVISION"):
         revision = int(os.environ["CAPIUM_REVISION"])
     elif env_ver:

@@ -7,7 +7,7 @@
  * overrides).
  *
  * Download scheme (signed, path-based):
- *     GET {server}/download/distro/chromium-v{version}/capiumbrowser-{os}-{arch}.tar.gz
+ *     GET {server}/download/distro/chromium-v{version}.{revision}/capiumbrowser-{os}-{arch}.tar.gz
  *
  * The license key travels in the X-Capzy-License header (over TLS), NEVER in the URL; the
  * request PATH is HMAC-signed (X-Capzy-Timestamp + X-Capzy-Signature =
@@ -15,7 +15,7 @@
  * X-Capzy-SHA256 is verified against the downloaded bytes before anything is extracted.
  *
  * The archive FILENAME is version-independent -- `capiumbrowser-<os>-<arch>.tar.gz` is always
- * the same; only the `chromium-v<version>/` folder changes.
+ * the same; only the `chromium-v<version>.<revision>/` folder changes.
  *
  * Source resolution (first that works):
  *     CAPIUM_BINARY            -> use this exact launch target, no download
@@ -87,15 +87,15 @@ function downloadTag(system = null, machine = null) {
 }
 
 /**
- * The signed request path for a build: version in the folder, tag in the filename
- * (`/download/distro/chromium-v<version>/capiumbrowser-<tag>.tar.gz`). Per-OS versions work
- * because each tag lives under its own chromium-v<version>/ folder (win/mac .65 while linux
- * is .64). Key travels in the X-Capzy-License header, the path is HMAC-signed, and the bytes
+ * The signed request path for a build: version.revision in the folder, tag in the filename
+ * (`/download/distro/chromium-v<version>.<revision>/capiumbrowser-<tag>.tar.gz`). Per-OS versions
+ * work because each tag lives under its own chromium-v<version>.<revision>/ folder (win/mac .65
+ * while linux .64). Key travels in the X-Capzy-License header, the path is HMAC-signed, and the bytes
  * are verified against the response's X-Capzy-SHA256.
  */
 function distroPath(version, tag, revision = 1) {
-  // A same-engine re-spin (revision>=2) lands in its own immutable folder
-  // chromium-v<version>-r<N>/, so publishing it never overwrites the base artifact older SDKs fetch.
+  // Each packaging revision lands in its own immutable folder chromium-v<version>.<N>/
+  // (N>=1), so publishing a re-spin never overwrites the artifact older SDKs fetch.
   return `/download/distro/chromium-v${buildId(version, revision)}/capiumbrowser-${tag}.tar.gz`;
 }
 
@@ -193,7 +193,7 @@ function stampVersion(binPath, version) {
 }
 
 /**
- * The buildId (`<version>` or `<version>-r<N>`) this host SHOULD run, honoring CAPIUM_* env, or
+ * The buildId (`<version>.<N>`) this host SHOULD run, honoring CAPIUM_* env, or
  * null if it can't be determined (CAPIUM_BINARY override / unsupported platform / bad manifest).
  * Lets the launch path detect+reject a stale binary from an earlier install instead of running it.
  */
@@ -326,8 +326,8 @@ async function ensureBinary({ version = null, licenseKey = null, server = null }
   const envVer = process.env.CAPIUM_VERSION;
   version = version || envVer || binaryVersionFor(tag);
   // A same Chromium version can be re-spun (r2, r3, ...). CAPIUM_REVISION overrides; an explicit
-  // CAPIUM_VERSION pin defaults to the base (r1) unless a revision is given; otherwise the per-OS
-  // revision comes from channels.json.
+  // CAPIUM_VERSION pin defaults to revision 1 (<version>.1) unless a revision is given;
+  // otherwise the per-OS revision comes from channels.json.
   let revision;
   if (process.env.CAPIUM_REVISION) revision = parseInt(process.env.CAPIUM_REVISION, 10);
   else if (envVer) revision = 1;

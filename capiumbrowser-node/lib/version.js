@@ -25,12 +25,12 @@ const SDK_VERSION = require('../package.json').version;
 // Used only if channels.json can't be read (corrupt/removed install). ensureBinary() raises a
 // clear error long before the "unsupported platform" case matters; this keeps lookups total.
 const FALLBACK_VERSIONS = {
-  'windows-x64': '152.0.7977.65', // real Chrome 152 stable per OS (win/mac .65, linux .64)
-  'macos-arm64': '152.0.7977.65',
-  'linux-x64': '152.0.7977.64',
-  'linux-arm64': '152.0.7977.64', // declared; not yet published (see channels.json)
+  'windows-x64': '153.0.8010.52', // real Chrome 152 stable per OS (win/mac .65, linux .64)
+  'macos-arm64': '153.0.8010.52',
+  'linux-x64': '153.0.8010.52',
+  'linux-arm64': '153.0.8010.52', // declared; not yet published (see channels.json)
 };
-const DEFAULT_BINARY_VERSION = '152.0.7977.65';
+const DEFAULT_BINARY_VERSION = '153.0.8010.52';
 
 function loadStable() {
   // The `channels.stable` map from the bundled manifest, or null if unreadable.
@@ -76,9 +76,9 @@ function revisionsFromManifest() {
 const CAPIUM_BINARY_REVISIONS = revisionsFromManifest();
 
 /**
- * The re-spin variant (>=1) for a distro tag. 1 = the base build (suffix-less folder); 2,3,...
- * are re-spins of the SAME Chromium version served from chromium-v<version>-r<N>/ (so a re-spin
- * never overwrites the base artifact older SDKs still fetch). A version bump resets this to 1.
+ * The packaging revision (>=1) for a distro tag. 1 = the first build (chromium-v<version>.1/);
+ * 2,3,... are re-spins of the SAME Chromium version served from chromium-v<version>.<N>/ (so a
+ * re-spin never overwrites the artifact older SDKs still fetch). A version bump resets this to 1.
  */
 function binaryRevisionFor(tag) {
   return CAPIUM_BINARY_REVISIONS[tag] || 1;
@@ -86,12 +86,16 @@ function binaryRevisionFor(tag) {
 
 /**
  * Stable identity of one specific build = the R2 folder discriminator AND the install-cache key.
- * revision 1 -> the version itself (chromium-v<version>/, the base build); N>=2 -> '<version>-r<N>'
- * (chromium-v<version>-r<N>/). So a revision bump on an unchanged engine still re-downloads.
+ * The packaging revision is ALWAYS a dotted suffix starting at 1: chromium-v<version>.<N>/
+ * (revision 1 -> <version>.1, the first build; 2,3,... -> <version>.2 etc., a same-engine
+ * re-spin). Each revision is its own immutable folder, so a re-spin never overwrites the
+ * artifact an older SDK still fetches, and a revision bump re-downloads. NOTE: the customer's
+ * reported Chrome version is unchanged -- this suffix only names our distro/upload/download
+ * artifact, not the browser version.
  */
 function buildId(version, revision) {
   const n = parseInt(revision, 10);
-  return !n || n < 2 ? version : `${version}-r${n}`;
+  return `${version}.${!n || n < 1 ? 1 : n}`;
 }
 
 /**

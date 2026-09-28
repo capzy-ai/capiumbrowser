@@ -38,16 +38,20 @@ test('unsupported platforms throw', () => {
 });
 
 test('distro path shape', () => {
-  const p = download.distroPath('152.0.7977.65', 'windows-x64');
+  // Packaging revision is always a dotted suffix; default revision 1 -> <version>.1
+  const p = download.distroPath('153.0.8010.52', 'windows-x64');
   assert.equal(p,
-    '/download/distro/chromium-v152.0.7977.65/capiumbrowser-windows-x64.tar.gz');
+    '/download/distro/chromium-v153.0.8010.52.1/capiumbrowser-windows-x64.tar.gz');
   assert.ok(p.includes('capiumbrowser-windows-x64.tar.gz'));
-  assert.ok(p.includes('chromium-v152.0.7977.65/'));
+  assert.ok(p.includes('chromium-v153.0.8010.52.1/'));
+  // a re-spin lands in its own .N folder
+  assert.equal(download.distroPath('153.0.8010.52', 'windows-x64', 2),
+    '/download/distro/chromium-v153.0.8010.52.2/capiumbrowser-windows-x64.tar.gz');
 });
 
 test('signed download headers: key in header, path HMAC-signed', () => {
   const key = 'cap_testkey';
-  const p = download.distroPath('152.0.7977.65', 'linux-x64');
+  const p = download.distroPath('153.0.8010.52', 'linux-x64');
   const h = license.getHeaders(key, p);
   assert.equal(h['X-Capzy-License'], key); // key travels in a header, never the URL
   assert.match(h['X-Capzy-Timestamp'], /^\d+$/);

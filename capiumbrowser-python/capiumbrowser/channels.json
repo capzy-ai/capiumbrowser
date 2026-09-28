@@ -1,29 +1,31 @@
 {
-  "_comment": "SINGLE SOURCE OF TRUTH for the current stable Capium browser build per OS/arch. Each OS reaches stable independently -- edit one entry without touching the others. This file ships inside the wheel (the SDK reads it to pick each host's stable build) AND is published to the download server by the release pipeline. `version` is the Chromium base; `revision` is the re-spin counter -- the served R2 folder is chromium-v<version>/ for revision 1 (the base build) and chromium-v<version>-r<N>/ for a re-spin (N>=2), so publishing a re-spin never overwrites the base artifact older SDKs still fetch. `published: false` means the tag is declared but no artifact exists yet -- the SDK raises a clear 'not published yet' error instead of a raw 404.",
+  "_comment": "SINGLE SOURCE OF TRUTH for the current stable Capium browser build per OS/arch. Each OS reaches stable independently -- edit one entry without touching the others. This file ships inside the wheel (the SDK reads it to pick each host's stable build) AND is published to the download server by the release pipeline. `version` is the Chromium version (what the browser reports to the customer -- unchanged by the revision); `revision` is our packaging counter -- the served R2 folder is chromium-v<version>.<revision>/, ALWAYS dotted-suffixed starting at 1 (chromium-v<version>.1/ is the first build, .2/ a same-engine re-spin), so publishing a re-spin never overwrites the artifact older SDKs still fetch. `published: false` means the tag is declared but no artifact exists yet -- the SDK raises a clear 'not published yet' error instead of a raw 404.",
   "schema": 1,
-  "updated": "2026-09-24",
+  "updated": "2026-09-28",
   "channels": {
     "stable": {
       "windows-x64": {
-        "version": "152.0.7977.82",
-        "revision": 4,
-        "sha256": "7172b2fdd62cbbfa2619428eca44a2c2fc614b859ce3e51bafef95ad759d4ef0",
+        "version": "153.0.8010.53",
+        "engine_version": "153.0.8010.52",
+        "revision": 1,
+        "sha256": "6eaea779c665335ffa8585f437527bb5124b72fc730b373bb53d23145fa33026",
         "published": true
       },
       "macos-arm64": {
-        "version": "152.0.7977.82",
-        "revision": 4,
-        "sha256": "4196dcc7687f11390a095b5f3c5aae091a7480306f63cdd9df86ad1267b421d8",
+        "version": "153.0.8010.53",
+        "engine_version": "153.0.8010.52",
+        "revision": 1,
+        "sha256": "a8901553c8c7eabf3b08106bc3784dd270280c82be8484cac800838c41dca40d",
         "published": true
       },
       "linux-x64": {
-        "version": "152.0.7977.82",
-        "revision": 4,
-        "sha256": "e4e052da580e300b0097c057445fff3ae865339dd93fd71ec96092dcfb1e7218",
+        "version": "153.0.8010.52",
+        "revision": 1,
+        "sha256": "69f512f01c2bfe202181847e10a76c36f0d1736170fd5bfe861f9ea6bdf5cc02",
         "published": true
       },
       "linux-arm64": {
-        "version": "152.0.7977.82",
+        "version": "153.0.8010.52",
         "revision": 1,
         "sha256": null,
         "published": false
