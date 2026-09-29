@@ -148,6 +148,11 @@ def find_binary(binary=None):
     bases = []
     if os.environ.get("CAPIUM_HOME"):
         bases.append(os.environ["CAPIUM_HOME"])
+    # The canonical install root: ~/.capium (next to the license). Searched BEFORE the package
+    # dirs so a `pip install -U` -- which replaces site-packages but leaves ~/.capium intact --
+    # finds the shared, stable install rather than an orphaned copy in an old site-packages. The
+    # package dirs + CWD stay in the list for back-compat with older layouts / vendored distros.
+    bases.append(os.path.join(os.path.expanduser("~"), ".capium"))
     bases += [os.path.dirname(here), here, os.getcwd()]
 
     # (path, containing_dir) so a bare chrome.exe can be checked for capium markers.

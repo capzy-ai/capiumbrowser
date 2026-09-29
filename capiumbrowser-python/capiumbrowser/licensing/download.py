@@ -102,9 +102,12 @@ def distro_path(version, tag, revision=1):
 # ---- extraction ------------------------------------------------------------------------------
 
 def _dest_root():
-    """Where extracted distros live (next to the package by default)."""
-    pkg_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    return os.environ.get("CAPIUM_HOME") or pkg_dir
+    """Where extracted distros live: CAPIUM_HOME, else ~/.capium (the capium home dir, next to
+    the license). A stable system-wide root -- NOT site-packages -- so the binary SURVIVES a
+    `pip install -U` (site-packages gets replaced; ~/.capium does not) and every interpreter /
+    venv shares one install instead of re-downloading per environment. Mirrors the Node SDK's
+    destRoot() and the ~/.capium/license contract."""
+    return os.environ.get("CAPIUM_HOME") or os.path.join(os.path.expanduser("~"), ".capium")
 
 
 def _extract(path, root, subdir):
