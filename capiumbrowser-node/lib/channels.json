@@ -1,27 +1,27 @@
 {
   "_comment": "SINGLE SOURCE OF TRUTH for the current stable Capium browser build per OS/arch. Each OS reaches stable independently -- edit one entry without touching the others. This file ships inside the wheel (the SDK reads it to pick each host's stable build) AND is published to the download server by the release pipeline. `version` is the Chromium version (what the browser reports to the customer -- unchanged by the revision); `revision` is our packaging counter -- the served R2 folder is chromium-v<version>.<revision>/, ALWAYS dotted-suffixed starting at 1 (chromium-v<version>.1/ is the first build, .2/ a same-engine re-spin), so publishing a re-spin never overwrites the artifact older SDKs still fetch. `published: false` means the tag is declared but no artifact exists yet -- the SDK raises a clear 'not published yet' error instead of a raw 404.",
   "schema": 1,
-  "updated": "2026-09-28",
+  "updated": "2026-09-29",
   "channels": {
     "stable": {
       "windows-x64": {
         "version": "153.0.8010.53",
         "engine_version": "153.0.8010.52",
-        "revision": 2,
-        "sha256": "28be2151dfdb56963d081a5b8bfbfca1daed014f22ff6a3af9404a091a557ca6",
+        "revision": 3,
+        "sha256": "af8ca122fe5ba572c985ee83869371505aba4e9cf6696c9385c68b28001c43ef",
         "published": true
       },
       "macos-arm64": {
         "version": "153.0.8010.53",
         "engine_version": "153.0.8010.52",
-        "revision": 2,
-        "sha256": "ec8f44b2d07b33659c616761bdf31539b75b11b6bac434c60ad126d14442277b",
+        "revision": 3,
+        "sha256": "4f41a66c792781e86bff653cd91adb3d41733c67d350d70c5c7c4287621a679f",
         "published": true
       },
       "linux-x64": {
         "version": "153.0.8010.52",
-        "revision": 1,
-        "sha256": "69f512f01c2bfe202181847e10a76c36f0d1736170fd5bfe861f9ea6bdf5cc02",
+        "revision": 2,
+        "sha256": "bb6f88b874f41718250cc26f50976c6cd27167a7583b5169fbcac99619d0eafc",
         "published": true
       },
       "linux-arm64": {
