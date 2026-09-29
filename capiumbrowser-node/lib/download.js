@@ -107,6 +107,17 @@ function destRoot() {
 }
 
 /**
+ * True if `binPath` lives under the canonical install root (~/.capium or CAPIUM_HOME). A
+ * same-version binary found OUTSIDE it (a legacy install elsewhere) is NOT reused -- we reinstall
+ * into the root so everything lands under one folder next to the license.
+ */
+function inRoot(binPath, root) {
+  const d = path.resolve(path.dirname(binPath));
+  const r = path.resolve(root);
+  return d === r || d.startsWith(r + path.sep);
+}
+
+/**
  * Extract a distro archive, sniffing gzip/zip/tar so the server can ship any of them.
  *
  * Extracts into a scratch dir first, then normalizes: a single-top archive (the tar layout,
@@ -334,12 +345,13 @@ async function ensureBinary({ version = null, licenseKey = null, server = null }
   else revision = binaryRevisionFor(tag);
   const bid = buildId(version, revision);
 
-  // Reuse the cached binary ONLY if it's already this exact build (version + revision). A
-  // different build -- e.g. after `npm install capiumbrowser@latest` bumps this OS's pinned build
-  // or re-spin -- falls through to fetch the new one and drop the old.
+  // Reuse the cached binary ONLY if it's already this exact build (version + revision) AND it
+  // lives in the canonical root (~/.capium or CAPIUM_HOME). A different build -- or a same-build
+  // binary in a LEGACY location -- falls through so we (re)install into ~/.capium, keeping the
+  // browser under one folder next to the license.
   try {
     const existing = config.findBinary();
-    if (readInstalledVersion(existing) === bid) return existing;
+    if (readInstalledVersion(existing) === bid && inRoot(existing, destRoot())) return existing;
   } catch {}
 
   let url;
@@ -407,6 +419,7 @@ module.exports = {
   downloadTag,
   distroPath,
   destRoot,
+  inRoot,
   ensureBinary,
   installedVersion,
   expectedBuildId,

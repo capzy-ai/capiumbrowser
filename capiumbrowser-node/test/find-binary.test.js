@@ -17,11 +17,17 @@ let home;
 const saved = {};
 beforeEach(() => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), 'capium-find-'));
-  for (const k of ['CAPIUM_HOME', 'CAPIUM_BINARY']) {
+  // Also sandbox the HOME dir: findBinary searches os.homedir()/.capium (the default install
+  // root) IN ADDITION to CAPIUM_HOME, so a real ~/.capium install on the dev machine would
+  // otherwise leak into "nothing found" assertions. Point os.homedir() at an empty sandbox.
+  const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'capium-home-'));
+  for (const k of ['CAPIUM_HOME', 'CAPIUM_BINARY', 'HOME', 'USERPROFILE']) {
     saved[k] = process.env[k];
     delete process.env[k];
   }
   process.env.CAPIUM_HOME = home;
+  process.env.HOME = fakeHome;
+  process.env.USERPROFILE = fakeHome;
 });
 afterEach(() => {
   for (const [k, v] of Object.entries(saved)) {

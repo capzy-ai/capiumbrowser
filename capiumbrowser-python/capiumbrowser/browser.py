@@ -42,11 +42,20 @@ def _resolve_binary(binary, license_key=None):
     try:
         found = config.find_binary()
         have = _download.installed_version(found)
-        if want is None or have == want:
+        if want is None:
+            return found  # can't determine the target (unsupported platform / manifest) -- trust it
+        in_root = _download._in_root(found, _download._dest_root())
+        if have == want and in_root:
             return found
-        sys.stderr.write(
-            "capium: ignoring stale binary at %s (build %s; current target %s) and fetching the "
-            "current build. Delete it or set CAPIUM_BINARY to silence this.\n" % (found, have, want))
+        if have == want and not in_root:
+            # right build, wrong place (a pre-1.1.3 site-packages install): migrate to ~/.capium
+            sys.stderr.write(
+                "capium: moving the browser out of %s into ~/.capium (the shared capium home). "
+                "Set CAPIUM_BINARY to pin a location.\n" % os.path.dirname(found))
+        else:
+            sys.stderr.write(
+                "capium: ignoring stale binary at %s (build %s; current target %s) and fetching the "
+                "current build. Delete it or set CAPIUM_BINARY to silence this.\n" % (found, have, want))
     except FileNotFoundError:
         pass
     return _download.ensure_binary(license_key=license_key)

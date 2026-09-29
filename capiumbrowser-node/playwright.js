@@ -20,6 +20,7 @@
  */
 'use strict';
 
+const path = require('path');
 const config = require('./lib/config');
 const download = require('./lib/download');
 const human = require('./lib/human');
@@ -50,11 +51,19 @@ async function resolveBinary(binary, licenseKey) {
   const want = download.expectedBuildId();
   try {
     const found = config.findBinary();
+    if (want === null) return found; // can't determine target (unsupported/manifest) -- trust it
     const have = download.installedVersion(found);
-    if (want === null || have === want) return found;
-    process.stderr.write(
-      `capium: ignoring stale binary at ${found} (build ${have}; current target ${want}) and ` +
-        `fetching the current build. Delete it or set CAPIUM_BINARY to silence this.\n`);
+    const atRoot = download.inRoot(found, download.destRoot());
+    if (have === want && atRoot) return found;
+    if (have === want && !atRoot) {
+      process.stderr.write(
+        `capium: moving the browser out of ${path.dirname(found)} into ~/.capium (the shared ` +
+          `capium home). Set CAPIUM_BINARY to pin a location.\n`);
+    } else {
+      process.stderr.write(
+        `capium: ignoring stale binary at ${found} (build ${have}; current target ${want}) and ` +
+          `fetching the current build. Delete it or set CAPIUM_BINARY to silence this.\n`);
+    }
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }

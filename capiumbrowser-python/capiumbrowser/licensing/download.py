@@ -154,6 +154,15 @@ def _extract(path, root, subdir):
 _MARKER = ".capium-build"
 
 
+def _in_root(binpath, root):
+    """True if `binpath` lives under the canonical install root (~/.capium or CAPIUM_HOME). A
+    same-version binary found OUTSIDE it (a legacy site-packages install) is NOT reused -- we
+    reinstall into the root so everything lands under one folder next to the license."""
+    d = os.path.abspath(os.path.dirname(binpath))
+    r = os.path.abspath(root)
+    return d == r or d.startswith(r + os.sep)
+
+
 def _installed_version(binpath):
     """Read the build version stamped next to an installed binary, or None (an old install
     from before version-stamping, which we treat as 'unknown' -> upgrade it)."""
@@ -311,12 +320,13 @@ def ensure_binary(version=None, license_key=None, server=None):
         revision = binary_revision_for(tag)
     bid = build_id(version, revision)
 
-    # Reuse the cached binary ONLY if it's already this exact build (version + revision). A
-    # different build -- e.g. after `pip install -U capiumbrowser` bumps this OS's pinned build or
-    # re-spin -- falls through to fetch the new one and drop the old.
+    # Reuse the cached binary ONLY if it's already this exact build (version + revision) AND it
+    # lives in the canonical root (~/.capium or CAPIUM_HOME). A different build -- or a same-build
+    # binary sitting in a LEGACY location (a pre-1.1.3 site-packages install) -- falls through so
+    # we (re)install into ~/.capium, migrating everything under one folder next to the license.
     try:
         existing = config.find_binary()
-        if _installed_version(existing) == bid:
+        if _installed_version(existing) == bid and _in_root(existing, _dest_root()):
             return existing
     except FileNotFoundError:
         pass
