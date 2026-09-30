@@ -160,9 +160,9 @@ header you can verify against the bytes.
 
 | `<tag>` | `<version>` | `<revision>` |
 | --- | --- | --- |
-| `windows-x64` | `153.0.8010.53` | `3` |
-| `macos-arm64` | `153.0.8010.53` | `3` |
-| `linux-x64` | `153.0.8010.52` | `2` |
+| `windows-x64` | `153.0.8010.53` | `4` |
+| `macos-arm64` | `153.0.8010.53` | `4` |
+| `linux-x64` | `153.0.8010.52` | `3` |
 | `linux-arm64` | *(coming soon)* | |
 
 > `<version>` is the version the browser reports for that platform — Windows and macOS are `153.0.8010.53` (the current Win/Mac stable patch), Linux is `153.0.8010.52`. The download folder matches it (`chromium-v<version>.<revision>/`). All three are built on the same `153.0.8010.52` Chromium engine; Win/Mac just report the `.53` patch.
