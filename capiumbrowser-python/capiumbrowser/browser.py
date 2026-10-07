@@ -18,7 +18,7 @@ import os
 import sys
 import tempfile
 
-from playwright.sync_api import sync_playwright
+from ._driver import get_sync_playwright
 
 from . import config
 from .network import proxy as _proxy
@@ -147,6 +147,30 @@ def fit_window(browser, context, page):
         pass
 
 
+def _fit_window_to_screen(context):
+    """Size the window to the seed's (coherent, per-seed) spoofed screen so viewport ~= screen.
+
+    With screen=None (the default), each persona uses its device-pool screen/dpr. Here we size the
+    window to that screen's available area (a maximized-like window), via the page's CDP session
+    (works for persistent contexts, which have no browser() object). This keeps screen~=viewport in
+    headless/container (avoids the browserscan 'screen != viewport' VM tell) AND stays coherent in
+    headed (Chrome clamps to the real display -> a normal viewport<screen window). Best-effort."""
+    try:
+        page = context.pages[0] if context.pages else None
+        if not page:
+            return
+        scr = page.evaluate("()=>({w:screen.availWidth,h:screen.availHeight})")
+        if not (scr and scr.get("w") and scr.get("h")):
+            return
+        aw, ah = int(scr["w"]), int(scr["h"])
+        s = context.new_cdp_session(page)
+        wid = s.send("Browser.getWindowForTarget")["windowId"]
+        s.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
+            "left": 0, "top": 0, "width": aw, "height": ah, "windowState": "normal"}})
+    except Exception:
+        pass
+
+
 def _wrap_close(obj, pw):
     """Make .close() also stop the Playwright driver so callers don't leak the process."""
     orig = obj.close
@@ -172,7 +196,7 @@ def _wrap_close(obj, pw):
 def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None, args=None,
            stealth_args=True, timezone=None, locale=None, extension_paths=None, binary=None,
            license_key=None, license_server=None, license_through_proxy=False,
-           license_preflight=True, **kwargs):
+           license_preflight=True, driver=None, **kwargs):
     """Launch a Capium Browser (non-persistent; Playwright manages a temp profile).
 
     seed/platform : identity. stealth_args=False drops the default fingerprint flags.
@@ -190,6 +214,12 @@ def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None
                     Set False for a dev build that runs without enforcement. Server-side
                     reasons (expired / seat / down) come back from the binary's own check via
                     its status file -- the SDK never re-verifies over the network.
+    driver        : CDP driver -- "playwright" (default) or "patchright". patchright is a
+                    drop-in Playwright fork that never calls Runtime.enable (it uses isolated
+                    worlds), closing a CDP-automation tell that Runtime-domain detectors
+                    (DataDome/Kasada) fingerprint. All binary spoofing is unaffected. Opt-in
+                    per target (env CAPIUM_DRIVER=patchright also works); needs `pip install
+                    patchright`. See capiumbrowser._driver for the trade-off.
     kwargs        : forwarded to Playwright's chromium.launch (e.g. slow_mo=...).
     Returns a Browser whose .close() also stops Playwright.
     """
@@ -207,7 +237,7 @@ def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None
         launch_args.append("--license-through-proxy")
     env = _license.child_env(license_key, license_server)
     status_path = _new_status_file(env)
-    pw = sync_playwright().start()
+    pw = get_sync_playwright(driver)().start()
     try:
         browser = pw.chromium.launch(executable_path=binpath, headless=headless,
                                      args=launch_args, env=env, **proxy_kwargs, **kwargs)
@@ -231,7 +261,7 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
                               timezone=None, locale=None, extension_paths=None, binary=None,
                               license_key=None, license_server=None,
                               license_through_proxy=False,
-                              license_preflight=True, **kwargs):
+                              license_preflight=True, driver=None, **kwargs):
     """Launch a persistent context (cookies/localStorage/state persist in user_data_dir).
 
     Same options as launch(); returns a BrowserContext whose .close() also stops Playwright.
@@ -254,7 +284,7 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
     # pinned a viewport themselves.
     if "viewport" not in kwargs and "no_viewport" not in kwargs:
         kwargs["no_viewport"] = True
-    pw = sync_playwright().start()
+    pw = get_sync_playwright(driver)().start()
     try:
         ctx = pw.chromium.launch_persistent_context(
             user_data_dir, executable_path=binpath, headless=headless,
@@ -271,6 +301,9 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
         raise
     _clear_status_file(status_path)
     ctx._capium_seed = seed
+    # Size the window to the seed's coherent per-seed screen (keeps viewport ~= screen now that
+    # the default screen is the device-pool resolution, not a forced 1440x900).
+    _fit_window_to_screen(ctx)
     return _wrap_close(ctx, pw)
 
 

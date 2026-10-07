@@ -10,7 +10,7 @@ import asyncio
 import atexit
 import os
 
-from playwright.async_api import async_playwright
+from ._driver import get_async_playwright
 
 from . import config
 from .network import proxy as _proxy
@@ -71,8 +71,13 @@ async def launch_async(seed=None, platform="windows", headless=False, proxy=None
                        args=None, stealth_args=True, timezone=None, locale=None,
                        extension_paths=None, binary=None, license_key=None,
                        license_server=None, license_through_proxy=False,
-                       license_preflight=True, **kwargs):
-    """Async launch -> Browser (await browser.close() also stops Playwright)."""
+                       license_preflight=True, driver=None, **kwargs):
+    """Async launch -> Browser (await browser.close() also stops Playwright).
+
+    driver: "playwright" (default) or "patchright" (closes the Runtime.enable CDP tell for
+    DataDome/Kasada-class detectors; env CAPIUM_DRIVER=patchright also works; binary spoofing
+    unaffected). See capiumbrowser._driver.
+    """
     await _license_preflight_async(license_key, license_server, license_preflight)
     key, _ = _license.effective(license_key, license_server)
     binpath = _resolve_binary(binary, key)
@@ -86,7 +91,7 @@ async def launch_async(seed=None, platform="windows", headless=False, proxy=None
         launch_args.append("--license-through-proxy")
     env = _license.child_env(license_key, license_server)
     status_path = _new_status_file(env)
-    pw = await async_playwright().start()
+    pw = await get_async_playwright(driver)().start()
     try:
         browser = await pw.chromium.launch(executable_path=binpath, headless=headless,
                                            args=launch_args, env=env, **proxy_kwargs, **kwargs)
@@ -110,7 +115,7 @@ async def launch_persistent_context_async(user_data_dir, seed=None, platform="wi
                                           stealth_args=True, timezone=None, locale=None,
                                           extension_paths=None, binary=None, license_key=None,
                                           license_server=None, license_through_proxy=False,
-                                          license_preflight=True,
+                                          license_preflight=True, driver=None,
                                           **kwargs):
     """Async persistent context -> BrowserContext."""
     await _license_preflight_async(license_key, license_server, license_preflight)
@@ -128,7 +133,7 @@ async def launch_persistent_context_async(user_data_dir, seed=None, platform="wi
     status_path = _new_status_file(env)
     if "viewport" not in kwargs and "no_viewport" not in kwargs:
         kwargs["no_viewport"] = True
-    pw = await async_playwright().start()
+    pw = await get_async_playwright(driver)().start()
     try:
         ctx = await pw.chromium.launch_persistent_context(
             user_data_dir, executable_path=binpath, headless=headless,

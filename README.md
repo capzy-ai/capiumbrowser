@@ -408,6 +408,38 @@ rejected license (401/403), an unreachable server, or a checksum mismatch each r
 
 ---
 
+## Isolated evaluate — for CDP-detecting sites (DataDome / Kasada)
+
+Launch, navigation, and `humanize` are already clean. The one driver-layer tell left is **`page.evaluate`
+running in the page's *main* world**: a site that wraps a built-in (`document.getElementsByClassName`, …)
+sees the driver's eval call it (`mainWorldExecution`), and an `Error.stack` captured during that eval
+carries Playwright's `UtilityScript` marker (`sourceUrlLeak`). Runtime-domain detectors fingerprint both.
+
+Fix it by evaluating in an **isolated world** (shares the DOM, but with pristine built-ins the page can't
+see or be seen by) — built into the SDK via Playwright's own `Page.createIsolatedWorld`, **no patchright**:
+
+```python
+from capiumbrowser import launch_persistent_context, isolate_evaluate, evaluate_isolated
+
+ctx = launch_persistent_context(user_data_dir, seed=200123, platform="windows")
+isolate_evaluate(ctx)                       # one line: every page.evaluate now runs isolated
+page = ctx.pages[0]
+page.goto("https://protected.example")
+token = page.evaluate("() => window.__token")   # your unchanged code — now CDP-detection-safe
+
+# or call it explicitly for a single read (leave other evals alone):
+token = evaluate_isolated(page, "() => window.__token")
+```
+
+Async twins: `isolate_evaluate_async(ctx)` / `evaluate_isolated_async(page, …)`. **Node** is identical
+(`const { isolateEvaluate, evaluateIsolated } = require('capiumbrowser')` — works with the Playwright
+*or* Puppeteer driver). Caveat: isolated evals carry **JSON-serializable** args/returns only (not
+element handles, not main-world globals), so it's opt-in rather than the default. Measured: main-world
+eval trips `mainWorldExecution`+`sourceUrlLeak`; isolated eval leaves both clean. This is purely an SDK
+feature (CDP `createIsolatedWorld`), so it works on every platform with no browser change.
+
+---
+
 ## API
 
 Every entry point has an `await`-able twin (`launch_async`, `launch_context_async`,

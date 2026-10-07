@@ -17,14 +17,19 @@ import shutil
 
 # Chrome flags that make an automated launch look like a normal user session. These are
 # fingerprint-level; the bash wrapper adds the platform/GL/geoip/font/bluetooth/storage flags.
-def get_default_stealth_args(seed=None, platform="windows", screen=(1440, 900)):
+def get_default_stealth_args(seed=None, platform="windows", screen=None):
     """Return the default per-launch fingerprint flags.
 
     seed:     int identity seed (a stable, coherent device per seed). Random if None.
     platform: "windows" | "macos" | "linux" -- the spoofed OS persona.
-    screen:   (width, height) for the spoofed screen AND the browser window, kept
-              equal so screen == window == viewport. Pass None to skip (rely on the
-              seed's device screen + fit_window; only coherent on a real display).
+    screen:   DEFAULT None -> use the seed's COHERENT per-seed device screen from the binary's
+              device pool (resolution matched to the GPU tier, with a realistic dpr). This is the
+              correct behavior: every persona gets a distinct, GPU-coherent screen, and the SDK
+              sizes the window to it after launch (fit_window) so viewport ~= screen. Passing an
+              explicit (width, height) FORCES that resolution on every seed -- which makes all
+              instances share one screen AND pairs e.g. an RTX 5080 with 1440x900 (incoherent);
+              only do that for a fixed-kiosk scenario. (Previously defaulted to (1440,900), a
+              cross-instance correlation + GPU-incoherence tell -- fixed.)
     """
     args = []
     if seed is not None:
@@ -50,6 +55,11 @@ def get_default_stealth_args(seed=None, platform="windows", screen=(1440, 900)):
         "primaryPointerType=4,availablePointerTypes=4",
         "--no-first-run",
         "--no-default-browser-check",
+        # NOTE: capium "CDP stealth" (isolated-world eval + console-API masking that make vanilla
+        # Playwright behave like patchright vs DataDome/rebrowser) is ON BY DEFAULT in the binary
+        # -- no flag needed. To opt out (e.g. if a solver needs page.evaluate to read the page's
+        # own main-world window globals, which the isolated world can't see), pass
+        # extra=["--capium-disable-cdp-stealth"].
     ]
     # Patch 001 makes developer_tools always false, which unmasks FingerprintJS's
     # tampering ML: per-seed canvas/audio NOISE would then read as tampering, so

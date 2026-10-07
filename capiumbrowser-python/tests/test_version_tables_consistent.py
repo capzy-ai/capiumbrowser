@@ -60,8 +60,10 @@ def test_per_platform_tables_agree_on_current_major():
     assert (row.group(1), row.group(2), row.group(3)) == (win, mac, lin), \
         f"kCapiumChromeBuilds[{major}] {row.groups()} != fingerprint_data.h ({win},{mac},{lin})"
 
-    # kStable (.inc) current-major entry -- single column = the published (win/mac) build.
-    inc = re.search(rf'\{{\s*"{major}"\s*,\s*"([\d.]+)"\s*\}}', _read(_INC))
+    # kStable (.inc) current-major entry -- PER-PLATFORM {major, win, mac, linux} (regenerated
+    # from kCapiumChromeBuilds so the JS UA-CH spoof path matches the HTTP header per platform).
+    inc = re.search(rf'\{{\s*"{major}"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*\}}',
+                    _read(_INC))
     assert inc, f"kStable entry for major {major} not found"
-    assert inc.group(1) == win, \
-        f"kStable[{major}] {inc.group(1)} != kChromeVersionWindows {win}"
+    assert (inc.group(1), inc.group(2), inc.group(3)) == (win, mac, lin), \
+        f"kStable[{major}] {inc.groups()} != fingerprint_data.h ({win},{mac},{lin})"

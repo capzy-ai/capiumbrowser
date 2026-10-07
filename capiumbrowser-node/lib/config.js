@@ -52,6 +52,11 @@ function getDefaultStealthArgs(seed = null, platform = 'windows', screen = [1440
       'primaryPointerType=4,availablePointerTypes=4',
     '--no-first-run',
     '--no-default-browser-check',
+    // NOTE: capium "CDP stealth" (isolated-world eval + console-API masking that make a vanilla
+    // driver behave like patchright vs DataDome/rebrowser) is ON BY DEFAULT in the binary -- no
+    // flag needed. To opt out (e.g. a solver needing page.evaluate to read the page's own
+    // main-world window globals, which the isolated world can't see), pass
+    // extra: ['--capium-disable-cdp-stealth'].
   );
   // Patch 001 makes developer_tools always false, which unmasks FingerprintJS's
   // tampering ML: per-seed canvas/audio NOISE would then read as tampering, so

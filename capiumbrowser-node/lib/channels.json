@@ -1,35 +1,35 @@
 {
-  "_comment": "SINGLE SOURCE OF TRUTH for the current stable Capium browser build per OS/arch. Each OS reaches stable independently -- edit one entry without touching the others. This file ships inside the wheel (the SDK reads it to pick each host's stable build) AND is published to the download server by the release pipeline. `version` is the Chromium version (what the browser reports to the customer -- unchanged by the revision); `revision` is our packaging counter -- the served R2 folder is chromium-v<version>.<revision>/, ALWAYS dotted-suffixed starting at 1 (chromium-v<version>.1/ is the first build, .2/ a same-engine re-spin), so publishing a re-spin never overwrites the artifact older SDKs still fetch. `published: false` means the tag is declared but no artifact exists yet -- the SDK raises a clear 'not published yet' error instead of a raw 404.",
-  "schema": 1,
-  "updated": "2026-09-30",
-  "channels": {
-    "stable": {
-      "windows-x64": {
-        "version": "153.0.8010.53",
-        "engine_version": "153.0.8010.52",
-        "revision": 4,
-        "sha256": "a3c92c3a726ed350f23864a10ed671d2bae302334185fe05d5218c0d2f79e23a",
-        "published": true
-      },
-      "macos-arm64": {
-        "version": "153.0.8010.53",
-        "engine_version": "153.0.8010.52",
-        "revision": 4,
-        "sha256": "26aa45865098fd528b8d88ff82135ecbba1fa23397f892bd77734d1ed1109582",
-        "published": true
-      },
-      "linux-x64": {
-        "version": "153.0.8010.52",
-        "revision": 3,
-        "sha256": "51e7d68ad521b14f81cf60440eb37a6546d0f5e7b7fb96619c9546433931ad89",
-        "published": true
-      },
-      "linux-arm64": {
-        "version": "153.0.8010.52",
-        "revision": 1,
-        "sha256": null,
-        "published": false
-      }
-    }
+ "_comment": "SINGLE SOURCE OF TRUTH for the current stable Capium browser build per OS/arch. Each OS reaches stable independently -- edit one entry without touching the others. This file ships inside the wheel (the SDK reads it to pick each host's stable build) AND is published to the download server by the release pipeline. `version` is the Chromium version (what the browser reports to the customer -- unchanged by the revision); `revision` is our packaging counter -- the served R2 folder is chromium-v<version>.<revision>/, ALWAYS dotted-suffixed starting at 1 (chromium-v<version>.1/ is the first build, .2/ a same-engine re-spin), so publishing a re-spin never overwrites the artifact older SDKs still fetch. `published: false` means the tag is declared but no artifact exists yet -- the SDK raises a clear 'not published yet' error instead of a raw 404.",
+ "schema": 1,
+ "updated": "2026-09-30",
+ "channels": {
+  "stable": {
+   "windows-x64": {
+    "version": "153.0.8010.53",
+    "engine_version": "153.0.8010.52",
+    "revision": 5,
+    "sha256": "3f53b86f80a3b145cb75995615f19c957a74d6a1a0ae1151ff64517b3a931d67",
+    "published": true
+   },
+   "macos-arm64": {
+    "version": "153.0.8010.53",
+    "engine_version": "153.0.8010.52",
+    "revision": 5,
+    "sha256": "26aa45865098fd528b8d88ff82135ecbba1fa23397f892bd77734d1ed1109582",
+    "published": false
+   },
+   "linux-x64": {
+    "version": "153.0.8010.52",
+    "revision": 4,
+    "sha256": "51e7d68ad521b14f81cf60440eb37a6546d0f5e7b7fb96619c9546433931ad89",
+    "published": false
+   },
+   "linux-arm64": {
+    "version": "153.0.8010.52",
+    "revision": 1,
+    "sha256": null,
+    "published": false
+   }
   }
+ }
 }
