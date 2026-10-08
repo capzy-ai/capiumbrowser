@@ -236,10 +236,12 @@ async function fitWindow(browser, context, page) {
     if (!scr || !scr.w || !scr.h) return;
     const aw = Math.trunc(scr.w);
     const ah = Math.trunc(scr.h);
-    const w = Math.min(aw, 1440);
-    const h = Math.min(ah, 900);
-    const left = Math.max(0, Math.floor((aw - w) / 5));
-    const top = Math.max(0, Math.floor((ah - h) / 6));
+    // Size the window to the FULL per-seed screen (match python _fit_window_to_screen) so
+    // screen ~= viewport -- avoids the browserscan "screen != viewport" VM tell. NOT a forced 1440x900.
+    const w = aw;
+    const h = ah;
+    const left = 0;
+    const top = 0;
     const pcdp = await context.newCDPSession(page);
     const { targetInfo } = await pcdp.send('Target.getTargetInfo');
     const bcdp = await browser.newBrowserCDPSession();

@@ -46,9 +46,18 @@ test('screen coherence flags', () => {
   assert.ok(args.includes('--fingerprint-screen-height=900'));
 });
 
-test('default screen argument applies when omitted', () => {
+test('default omits forced screen flags (uses per-seed device screen)', () => {
   const args = config.getDefaultStealthArgs(1, 'linux');
-  assert.ok(args.includes('--window-size=1440,900'));
+  assert.ok(!has(args, '--window-size'));
+  assert.ok(!has(args, '--fingerprint-screen-width'));
+  assert.ok(!has(args, '--fingerprint-screen-height'));
+});
+
+test('explicit screen forces that resolution + window', () => {
+  const args = config.getDefaultStealthArgs(1, 'linux', [1920, 1080]);
+  assert.ok(args.includes('--window-size=1920,1080'));
+  assert.ok(args.includes('--fingerprint-screen-width=1920'));
+  assert.ok(args.includes('--fingerprint-screen-height=1080'));
 });
 
 test('no seed omits identity flags', () => {

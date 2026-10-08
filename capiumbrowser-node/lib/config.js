@@ -22,11 +22,14 @@ const path = require('path');
  *
  * seed:     int identity seed (a stable, coherent device per seed). Random if null.
  * platform: "windows" | "macos" | "linux" -- the spoofed OS persona.
- * screen:   [width, height] for the spoofed screen AND the browser window, kept
- *           equal so screen == window == viewport. Pass null to skip (rely on the
- *           seed's device screen + fitWindow; only coherent on a real display).
+ * screen:   DEFAULT null -> use the seed's COHERENT per-seed device screen from the binary's
+ *           device pool (GPU-matched resolution + realistic dpr); fitWindow then sizes the window
+ *           to it so viewport ~= screen. Passing an explicit [w,h] FORCES that resolution on every
+ *           seed (all instances share one screen AND can pair e.g. an RTX 5080 with 1440x900) --
+ *           only for a fixed-kiosk scenario. (Previously defaulted to [1440,900], a cross-instance
+ *           correlation + GPU-incoherence tell -- now matches the python SDK's screen=None.)
  */
-function getDefaultStealthArgs(seed = null, platform = 'windows', screen = [1440, 900]) {
+function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null) {
   const args = [];
   if (seed !== null && seed !== undefined) {
     const s = Math.trunc(Number(seed));
