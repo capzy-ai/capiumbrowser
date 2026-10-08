@@ -74,6 +74,29 @@ test('third-party cookies allowed', () => {
   assert.ok(args.includes('--fingerprint-allow-3p-cookies'));
 });
 
+test('headless default screen/viewport (maximized 1080p Windows model)', () => {
+  const a = config.getHeadlessDefaultArgs();
+  assert.ok(a.includes('--fingerprint-screen-width=1920'));
+  assert.ok(a.includes('--fingerprint-screen-height=1080'));
+  assert.ok(a.includes('--window-size=1920,947'));
+});
+
+test('buildArgs adds the headless default only in headless', () => {
+  const { buildArgs } = require('../lib/launch-common');
+  const headless = buildArgs({ seed: 1, platform: 'windows', stealthArgs: true, headless: true });
+  assert.ok(headless.includes('--window-size=1920,947'));
+  const headed = buildArgs({ seed: 1, platform: 'windows', stealthArgs: true, headless: false });
+  assert.ok(!has(headed, '--window-size'));
+});
+
+test('buildArgs headless default yields to an explicit screen', () => {
+  const { buildArgs } = require('../lib/launch-common');
+  const a = buildArgs({ seed: 1, platform: 'windows', stealthArgs: true,
+    extra: ['--window-size=800,600'], headless: true });
+  assert.ok(a.includes('--window-size=800,600'));
+  assert.ok(!a.includes('--window-size=1920,947'));
+});
+
 test('newSeed is a positive 31-bit int', () => {
   for (let i = 0; i < 100; i++) {
     const s = config.newSeed();

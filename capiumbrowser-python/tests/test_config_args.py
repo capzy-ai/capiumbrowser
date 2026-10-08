@@ -54,3 +54,27 @@ def test_no_seed_omits_identity_flags():
 def test_third_party_cookies_allowed():
     args = config.get_default_stealth_args(seed=1, platform="linux", screen=None)
     assert "--fingerprint-allow-3p-cookies" in args
+
+
+def test_headless_default_screen_viewport():
+    # Maximized-1080p-Windows model: screen 1920x1080, viewport (window) 1920x947.
+    a = config.get_headless_default_args()
+    assert "--fingerprint-screen-width=1920" in a
+    assert "--fingerprint-screen-height=1080" in a
+    assert "--window-size=1920,947" in a
+
+
+def test_build_args_adds_headless_default_only_headless():
+    from capiumbrowser import browser
+    headless = browser._build_args(1, "windows", True, None, None, None, None, headless=True)
+    assert "--window-size=1920,947" in headless
+    headed = browser._build_args(1, "windows", True, None, None, None, None, headless=False)
+    assert not _has(headed, "--window-size")
+
+
+def test_build_args_headless_default_yields_to_explicit_screen():
+    from capiumbrowser import browser
+    a = browser._build_args(1, "windows", True, None, None, None,
+                            ["--window-size=800,600"], headless=True)
+    assert "--window-size=800,600" in a
+    assert "--window-size=1920,947" not in a

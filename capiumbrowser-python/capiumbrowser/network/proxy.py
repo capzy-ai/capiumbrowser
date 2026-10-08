@@ -123,7 +123,7 @@ def _spec_bypass(spec):
 
     Comma-separated hosts/patterns that should connect DIRECT, skipping the proxy
     (e.g. "localhost,*.internal"). Only dict specs carry it; a string proxy URL has
-    nowhere to put it. Mirrors cloakbrowser: inline -> --proxy-bypass-list=<v>,
+    nowhere to put it. inline -> --proxy-bypass-list=<v>,
     CDP -> the dict's own 'bypass' field."""
     if isinstance(spec, dict):
         return spec.get("bypass") or None

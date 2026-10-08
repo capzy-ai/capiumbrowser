@@ -86,11 +86,14 @@ async def launch_async(seed=None, platform="windows", headless=False, proxy=None
     display = os.environ.get("DISPLAY")
     proxy_kwargs, proxy_args = await _proxy_and_geo_args_async(proxy, binpath, geoip, display)
     launch_args = proxy_args + _build_args(
-        seed, platform, stealth_args, timezone, locale, extension_paths, args)
+        seed, platform, stealth_args, timezone, locale, extension_paths, args, headless)
     if license_through_proxy:
         launch_args.append("--license-through-proxy")
     env = _license.child_env(license_key, license_server)
     status_path = _new_status_file(env)
+    # Strip Playwright's automation + forced-software-WebGL defaults;
+    # the caller can override by passing ignore_default_args explicitly.
+    kwargs.setdefault("ignore_default_args", list(config.IGNORE_DEFAULT_ARGS))
     pw = await get_async_playwright(driver)().start()
     try:
         browser = await pw.chromium.launch(executable_path=binpath, headless=headless,
@@ -126,13 +129,16 @@ async def launch_persistent_context_async(user_data_dir, seed=None, platform="wi
     display = os.environ.get("DISPLAY")
     proxy_kwargs, proxy_args = await _proxy_and_geo_args_async(proxy, binpath, geoip, display)
     launch_args = proxy_args + _build_args(
-        seed, platform, stealth_args, timezone, locale, extension_paths, args)
+        seed, platform, stealth_args, timezone, locale, extension_paths, args, headless)
     if license_through_proxy:
         launch_args.append("--license-through-proxy")
     env = _license.child_env(license_key, license_server)
     status_path = _new_status_file(env)
     if "viewport" not in kwargs and "no_viewport" not in kwargs:
         kwargs["no_viewport"] = True
+    # Strip Playwright's automation + forced-software-WebGL defaults;
+    # the caller can override by passing ignore_default_args explicitly.
+    kwargs.setdefault("ignore_default_args", list(config.IGNORE_DEFAULT_ARGS))
     pw = await get_async_playwright(driver)().start()
     try:
         ctx = await pw.chromium.launch_persistent_context(

@@ -78,7 +78,7 @@ async function prepare(opts) {
     seed = null, platform = 'windows', proxy = null, geoip = null, args = null,
     stealthArgs = true, timezone = null, locale = null, extensionPaths = null,
     binary = null, licenseKey = null, licenseServer = null,
-    licenseThroughProxy = false, licensePreflight = true,
+    licenseThroughProxy = false, licensePreflight = true, headless = false,
   } = opts;
   if (licensePreflight) license.preflight(licenseKey, licenseServer);
   const { key } = license.effective(licenseKey, licenseServer);
@@ -87,6 +87,7 @@ async function prepare(opts) {
   const { launchOptions, args: proxyArgs } = proxyAndGeoArgs(proxy, geoip);
   const launchArgs = proxyArgs.concat(buildArgs({
     seed: finalSeed, platform, stealthArgs, timezone, locale, extensionPaths, extra: args,
+    headless,
   }));
   if (licenseThroughProxy) launchArgs.push('--license-through-proxy');
   const env = license.childEnv(licenseKey, licenseServer);
@@ -135,7 +136,7 @@ async function buildLaunchOptions(opts = {}) {
   } = opts;
   const prep = await prepare({
     seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
-    binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
+    binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight, headless,
   });
   const proxyOption = prep.launchOptions.proxy || null;
   const launchArgs = [...prep.launchArgs];
@@ -149,7 +150,7 @@ async function buildLaunchOptions(opts = {}) {
     args: launchArgs,
     env: prep.env,
     defaultViewport: 'defaultViewport' in rest ? rest.defaultViewport : null,
-    ignoreDefaultArgs: ignoreDefaultArgs === undefined ? ['--enable-automation'] : ignoreDefaultArgs,
+    ignoreDefaultArgs: ignoreDefaultArgs === undefined ? config.IGNORE_DEFAULT_ARGS : ignoreDefaultArgs,
     ...rest,
   };
 }
@@ -167,7 +168,7 @@ async function launch(opts = {}) {
   } = opts;
   const prep = await prepare({
     seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
-    binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
+    binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight, headless,
   });
   const puppeteer = requireDriver();
   // The CDP escape hatch puts {proxy: {server, username?, ...}} in launchOptions; Puppeteer
@@ -178,8 +179,8 @@ async function launch(opts = {}) {
     launchArgs.push(`--proxy-server=${proxyOption.server}`);
     if (proxyOption.bypass) launchArgs.push(`--proxy-bypass-list=${proxyOption.bypass}`);
   }
-  // Strip Puppeteer's --enable-automation unless the caller took over ignoreDefaultArgs.
-  const ida = ignoreDefaultArgs === undefined ? ['--enable-automation'] : ignoreDefaultArgs;
+  // Strip automation + forced-software WebGL defaults unless the caller took over ignoreDefaultArgs.
+  const ida = ignoreDefaultArgs === undefined ? config.IGNORE_DEFAULT_ARGS : ignoreDefaultArgs;
   let browser;
   try {
     browser = await puppeteer.launch({

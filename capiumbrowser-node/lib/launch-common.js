@@ -39,9 +39,17 @@ function proxyAndGeoArgs(spec, geoipOn) {
   return { launchOptions, args: out };
 }
 
-function buildArgs({ seed, platform, stealthArgs, timezone, locale, extensionPaths, extra }) {
+function buildArgs({ seed, platform, stealthArgs, timezone, locale, extensionPaths, extra,
+  headless = false }) {
   let args = [];
-  if (stealthArgs) args = args.concat(config.getDefaultStealthArgs(seed, platform));
+  if (stealthArgs) {
+    args = args.concat(config.getDefaultStealthArgs(seed, platform));
+    // Headless: pin the maximized-1080p-Windows screen/viewport (see config), unless the
+    // caller already set their own screen/window via extra args.
+    if (headless && !config.hasScreenOverride(extra)) {
+      args = args.concat(config.getHeadlessDefaultArgs());
+    }
+  }
   if (timezone) args.push(`--timezone=${timezone}`); // capium in-binary tz spoof
   if (locale) {
     args.push(`--lang=${locale}`);

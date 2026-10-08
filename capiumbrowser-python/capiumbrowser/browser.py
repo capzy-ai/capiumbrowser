@@ -105,10 +105,24 @@ def _proxy_and_geo_args(spec, binpath, geoip_on, display):
     return proxy_kwargs, out
 
 
-def _build_args(seed, platform, stealth_args, timezone, locale, extension_paths, extra):
+def _has_screen_override(extra):
+    """True if the caller's extra args already pin a screen/window size, so the headless
+    default must not be added on top (last --window-size would otherwise be ambiguous)."""
+    if not extra:
+        return False
+    keys = ("--window-size", "--fingerprint-screen-width", "--fingerprint-screen-height")
+    return any(isinstance(a, str) and a.startswith(keys) for a in extra)
+
+
+def _build_args(seed, platform, stealth_args, timezone, locale, extension_paths, extra,
+                headless=False):
     args = []
     if stealth_args:
         args += config.get_default_stealth_args(seed, platform)
+        # Headless: pin the maximized-1080p-Windows screen/viewport (see config), unless the
+        # caller already set their own screen/window via extra args.
+        if headless and not _has_screen_override(extra):
+            args += config.get_headless_default_args()
     if timezone:
         args.append("--timezone=%s" % timezone)          # capium in-binary tz spoof
     if locale:
@@ -232,11 +246,14 @@ def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None
     display = os.environ.get("DISPLAY")
     proxy_kwargs, proxy_args = _proxy_and_geo_args(proxy, binpath, geoip, display)
     launch_args = proxy_args + _build_args(
-        seed, platform, stealth_args, timezone, locale, extension_paths, args)
+        seed, platform, stealth_args, timezone, locale, extension_paths, args, headless)
     if license_through_proxy:
         launch_args.append("--license-through-proxy")
     env = _license.child_env(license_key, license_server)
     status_path = _new_status_file(env)
+    # Strip Playwright's automation + forced-software-WebGL defaults;
+    # the caller can override by passing ignore_default_args explicitly.
+    kwargs.setdefault("ignore_default_args", list(config.IGNORE_DEFAULT_ARGS))
     pw = get_sync_playwright(driver)().start()
     try:
         browser = pw.chromium.launch(executable_path=binpath, headless=headless,
@@ -275,7 +292,7 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
     display = os.environ.get("DISPLAY")
     proxy_kwargs, proxy_args = _proxy_and_geo_args(proxy, binpath, geoip, display)
     launch_args = proxy_args + _build_args(
-        seed, platform, stealth_args, timezone, locale, extension_paths, args)
+        seed, platform, stealth_args, timezone, locale, extension_paths, args, headless)
     if license_through_proxy:
         launch_args.append("--license-through-proxy")
     env = _license.child_env(license_key, license_server)
@@ -284,6 +301,9 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
     # pinned a viewport themselves.
     if "viewport" not in kwargs and "no_viewport" not in kwargs:
         kwargs["no_viewport"] = True
+    # Strip Playwright's automation + forced-software-WebGL defaults;
+    # the caller can override by passing ignore_default_args explicitly.
+    kwargs.setdefault("ignore_default_args", list(config.IGNORE_DEFAULT_ARGS))
     pw = get_sync_playwright(driver)().start()
     try:
         ctx = pw.chromium.launch_persistent_context(
@@ -301,9 +321,12 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
         raise
     _clear_status_file(status_path)
     ctx._capium_seed = seed
-    # Size the window to the seed's coherent per-seed screen (keeps viewport ~= screen now that
-    # the default screen is the device-pool resolution, not a forced 1440x900).
-    _fit_window_to_screen(ctx)
+    # Headed: size the window to the seed's coherent per-seed screen (keeps viewport ~= screen now
+    # that the default screen is the device-pool resolution, not a forced 1440x900). Headless has
+    # no window manager -- the fixed --window-size=1920,947 from _build_args already governs the
+    # viewport there, so do NOT CDP-resize it to availHeight (that would stretch it to ~1040).
+    if not headless:
+        _fit_window_to_screen(ctx)
     return _wrap_close(ctx, pw)
 
 

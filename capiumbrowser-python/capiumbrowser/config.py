@@ -15,6 +15,41 @@ import os
 import random
 import shutil
 
+# Playwright/Puppeteer default args to SUPPRESS (ignore_default_args) -- these leak automation
+# or force a software render.
+#   --enable-automation         : exposes navigator.webdriver=true + an automation banner.
+#   --enable-unsafe-swiftshader : the driver adds this so headless WebGL "works", but it ENABLES
+#                                 the (for us, broken-ICD) bundled SwiftShader path -> getContext
+#                                 ('webgl')=null headless, or a software-raster tell. Stripping it
+#                                 forces Chromium onto the real GPU (GPU host) or the system Mesa
+#                                 (GPU-less host w/ Mesa) instead of the broken software backend.
+IGNORE_DEFAULT_ARGS = ["--enable-automation", "--enable-unsafe-swiftshader"]
+
+
+# Headless default screen/viewport. Headless has no real display, so the per-seed device-pool
+# screen (e.g. 2560x1440) has no window manager to size a matching window against -- the
+# framebuffer would stay at Chromium's small headless default and screen != viewport (a
+# browserscan VM tell). Instead we model the single MOST COMMON real setup: a maximized Chrome
+# window on a 1080p Windows monitor -- screen 1920x1080, viewport 1920x947 (1040 avail height
+# minus ~93px of tab/omnibox/bookmark chrome). This is the dominant real-world viewport, so a
+# headless instance blends into the crowd rather than exposing an unusual size, and screen >
+# viewport stays coherent. Applied only in headless and only when the caller pins no screen of
+# their own (an explicit --fingerprint-screen-* / --window-size in args opts out).
+HEADLESS_SCREEN = (1920, 1080)
+HEADLESS_VIEWPORT = (1920, 947)
+
+
+def get_headless_default_args():
+    """Flags that pin the headless screen+viewport to the maximized-1080p-Windows model."""
+    sw, sh = HEADLESS_SCREEN
+    vw, vh = HEADLESS_VIEWPORT
+    return [
+        "--fingerprint-screen-width=%d" % sw,
+        "--fingerprint-screen-height=%d" % sh,
+        "--window-size=%d,%d" % (vw, vh),
+    ]
+
+
 # Chrome flags that make an automated launch look like a normal user session. These are
 # fingerprint-level; the bash wrapper adds the platform/GL/geoip/font/bluetooth/storage flags.
 def get_default_stealth_args(seed=None, platform="windows", screen=None):

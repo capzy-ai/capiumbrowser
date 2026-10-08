@@ -17,6 +17,42 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+// Playwright/Puppeteer default args to SUPPRESS (ignoreDefaultArgs): these leak automation
+// or force a software render.
+//   --enable-automation         : exposes navigator.webdriver=true + an automation banner.
+//   --enable-unsafe-swiftshader : the driver adds this so headless WebGL "works", but it ENABLES
+//                                 the (for us, broken-ICD) bundled SwiftShader path -> getContext
+//                                 ('webgl')=null headless / a software-raster tell. Stripping it
+//                                 forces Chromium onto the real GPU (GPU host) or system Mesa.
+const IGNORE_DEFAULT_ARGS = ['--enable-automation', '--enable-unsafe-swiftshader'];
+
+// Headless default screen/viewport. Headless has no real display, so the per-seed device-pool
+// screen (e.g. 2560x1440) has no window manager to size a matching window against -- the
+// framebuffer would stay at Chromium's small headless default and screen != viewport (a
+// browserscan VM tell). Instead model the single MOST COMMON real setup: a maximized Chrome
+// window on a 1080p Windows monitor -- screen 1920x1080, viewport 1920x947 (1040 avail height
+// minus ~93px of tab/omnibox/bookmark chrome). Dominant real-world viewport, so a headless
+// instance blends in, and screen > viewport stays coherent. Applied only in headless and only
+// when the caller pins no screen (an explicit --fingerprint-screen-* / --window-size opts out).
+const HEADLESS_SCREEN = [1920, 1080];
+const HEADLESS_VIEWPORT = [1920, 947];
+
+function getHeadlessDefaultArgs() {
+  const [sw, sh] = HEADLESS_SCREEN;
+  const [vw, vh] = HEADLESS_VIEWPORT;
+  return [
+    `--fingerprint-screen-width=${sw}`,
+    `--fingerprint-screen-height=${sh}`,
+    `--window-size=${vw},${vh}`,
+  ];
+}
+
+function hasScreenOverride(extra) {
+  if (!Array.isArray(extra)) return false;
+  const keys = ['--window-size', '--fingerprint-screen-width', '--fingerprint-screen-height'];
+  return extra.some((a) => typeof a === 'string' && keys.some((k) => a.startsWith(k)));
+}
+
 /**
  * Return the default per-launch fingerprint flags.
  *
@@ -285,6 +321,11 @@ function findBinary(binary = null) {
 
 module.exports = {
   getDefaultStealthArgs,
+  IGNORE_DEFAULT_ARGS,
+  HEADLESS_SCREEN,
+  HEADLESS_VIEWPORT,
+  getHeadlessDefaultArgs,
+  hasScreenOverride,
   newSeed,
   findBinary,
   searchBases,

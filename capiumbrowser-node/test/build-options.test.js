@@ -1,6 +1,6 @@
 // Tests for the buildLaunchOptions escape hatch (both drivers) and the viewport
 // defaulting applied to plain launch()'d Browsers -- the two integration surfaces
-// adopted from the cloakbrowser wrapper comparison.
+// adopted from the launch-wrapper comparison.
 'use strict';
 
 const assert = require('node:assert/strict');
@@ -54,7 +54,7 @@ test('puppeteer buildLaunchOptions: puppeteer-shaped defaults', async () => {
   });
   assert.equal(o.executablePath, fakeBin);
   assert.equal(o.defaultViewport, null); // page tracks the real window
-  assert.deepEqual(o.ignoreDefaultArgs, ['--enable-automation']);
+  assert.deepEqual(o.ignoreDefaultArgs, ['--enable-automation', '--enable-unsafe-swiftshader']);
   assert.ok(o.args.includes('--fingerprint=7'));
 });
 

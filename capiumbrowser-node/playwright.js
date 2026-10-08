@@ -78,7 +78,7 @@ async function prepare(opts) {
     seed = null, platform = 'windows', proxy = null, geoip = null, args = null,
     stealthArgs = true, timezone = null, locale = null, extensionPaths = null,
     binary = null, licenseKey = null, licenseServer = null,
-    licenseThroughProxy = false, licensePreflight = true,
+    licenseThroughProxy = false, licensePreflight = true, headless = false,
   } = opts;
   if (licensePreflight) license.preflight(licenseKey, licenseServer);
   const { key } = license.effective(licenseKey, licenseServer);
@@ -87,6 +87,7 @@ async function prepare(opts) {
   const { launchOptions, args: proxyArgs } = proxyAndGeoArgs(proxy, geoip);
   const launchArgs = proxyArgs.concat(buildArgs({
     seed: finalSeed, platform, stealthArgs, timezone, locale, extensionPaths, extra: args,
+    headless,
   }));
   if (licenseThroughProxy) launchArgs.push('--license-through-proxy');
   const env = license.childEnv(licenseKey, licenseServer);
@@ -121,10 +122,11 @@ async function buildLaunchOptions(opts = {}) {
   } = opts;
   const prep = await prepare({
     seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
-    binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
+    binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight, headless,
   });
   return {
     executablePath: prep.binPath, headless, args: prep.launchArgs, env: prep.env,
+    ignoreDefaultArgs: config.IGNORE_DEFAULT_ARGS,   // strip automation + forced-software WebGL defaults
     ...prep.launchOptions, ...rest,
   };
 }
@@ -174,13 +176,14 @@ async function launch(opts = {}) {
   } = opts;
   const prep = await prepare({
     seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
-    binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
+    binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight, headless,
   });
   const pw = requireDriver();
   let browser;
   try {
     browser = await pw.chromium.launch({
       executablePath: prep.binPath, headless, args: prep.launchArgs, env: prep.env,
+      ignoreDefaultArgs: config.IGNORE_DEFAULT_ARGS,   // strip automation + forced-software WebGL defaults
       ...prep.launchOptions, ...rest,
     });
   } catch (e) {
@@ -204,7 +207,7 @@ async function launchPersistentContext(userDataDir, opts = {}) {
   } = opts;
   const prep = await prepare({
     seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
-    binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
+    binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight, headless,
   });
   // Default to the page filling the window (see launchContext) unless the caller pinned a
   // viewport themselves. viewport: null is Playwright-JS for "no fixed viewport".
@@ -214,6 +217,7 @@ async function launchPersistentContext(userDataDir, opts = {}) {
   try {
     ctx = await pw.chromium.launchPersistentContext(userDataDir, {
       executablePath: prep.binPath, headless, args: prep.launchArgs, env: prep.env,
+      ignoreDefaultArgs: config.IGNORE_DEFAULT_ARGS,   // strip automation + forced-software WebGL defaults
       ...prep.launchOptions, ...rest,
     });
   } catch (e) {
