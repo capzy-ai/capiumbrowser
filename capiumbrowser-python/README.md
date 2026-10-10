@@ -663,8 +663,7 @@ launches **headed**, which reads cleaner than headless.
 
 The SDK auto-detects your host and downloads the matching tag; macOS Intel and Windows ARM are **not**
 published and raise a clear error. The **1.2.0** manifest selects **Chromium 155.0.8059.39, revision 1** on the three
-supported hosts. This release is prepared as a draft; downloads become available when the browser
-artifacts are published. Linux arm64 remains unpublished.
+supported hosts. Browser downloads are available with a valid license. Linux arm64 remains unpublished.
 
 ---
 

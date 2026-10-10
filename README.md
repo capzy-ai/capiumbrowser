@@ -160,22 +160,22 @@ header you can verify against the bytes.
 
 | `<tag>` | `<version>` | `<revision>` |
 | --- | --- | --- |
-| `windows-x64` | `153.0.8010.53` | `4` |
-| `macos-arm64` | `153.0.8010.53` | `4` |
-| `linux-x64` | `153.0.8010.52` | `3` |
+| `windows-x64` | `155.0.8059.39` | `1` |
+| `macos-arm64` | `155.0.8059.39` | `1` |
+| `linux-x64` | `155.0.8059.39` | `1` |
 | `linux-arm64` | *(coming soon)* | |
 
-> `<version>` is the version the browser reports for that platform — Windows and macOS are `153.0.8010.53` (the current Win/Mac stable patch), Linux is `153.0.8010.52`. The download folder matches it (`chromium-v<version>.<revision>/`). All three are built on the same `153.0.8010.52` Chromium engine; Win/Mac just report the `.53` patch.
+> `<version>` is the compiled and reported browser version. All three supported platforms use Chromium `155.0.8059.39`, packaging revision `1`, in `chromium-v155.0.8059.39.1/`. Linux arm64 is not yet published.
 
 The current stable version per platform is also in each [release's checksums](https://github.com/capzy-ai/capiumbrowser/releases).
 
-The R2 folder is `chromium-v<version>.<revision>/` — the packaging **revision** is always a dotted suffix starting at `.1` (e.g. `chromium-v153.0.8010.53.1/`; a same-engine re-spin is `.2`, `.3`, …). The revision only names our artifact — the browser still reports its real Chrome `<version>`. Folders are immutable, so a re-spin never overwrites the artifact an older pinned SDK keeps fetching. The SDK picks the right folder automatically; for a raw download, read `<version>` and `<revision>` from the table (or the published `channels.json`) and build the folder as shown below.
+The R2 folder is `chromium-v<version>.<revision>/` — the packaging **revision** is always a dotted suffix starting at `.1` (e.g. `chromium-v155.0.8059.39.1/`; a same-engine re-spin is `.2`, `.3`, …). The revision only names our artifact — the browser still reports its real Chrome `<version>`. Folders are immutable, so a re-spin never overwrites the artifact an older pinned SDK keeps fetching. The SDK picks the right folder automatically; for a raw download, read `<version>` and `<revision>` from the table (or the published `channels.json`) and build the folder as shown below.
 
 ### curl (bash)
 
 ```bash
 KEY="cap_your_key_here"
-VERSION="153.0.8010.53"                  # build/artifact version -- see the table above
+VERSION="155.0.8059.39"                  # build/artifact version -- see the table above
 REVISION="1"                             # packaging revision (dotted suffix, starts at 1)
 TAG="windows-x64"                        # windows-x64 | macos-arm64 | linux-x64 | linux-arm64
 REQ_PATH="/download/distro/chromium-v${VERSION}.${REVISION}/capiumbrowser-${TAG}.tar.gz"
@@ -187,7 +187,7 @@ curl -fSL "https://license.capzy.ai${REQ_PATH}" \
   -H "X-Capzy-License: ${KEY}" \
   -H "X-Capzy-Timestamp: ${TS}" \
   -H "X-Capzy-Signature: ${SIG}" \
-  -H "User-Agent: capiumbrowser/1.1.0" \
+  -H "User-Agent: capiumbrowser/1.2.0" \
   -o "capiumbrowser-${TAG}.tar.gz"
 
 # verify (optional): compare against the X-Capzy-SHA256 header / the release checksums
@@ -203,7 +203,7 @@ const { pipeline } = require('stream/promises');
 const { Readable } = require('stream');
 
 const KEY = process.env.CAPIUM_LICENSE_KEY;
-const VERSION = '153.0.8010.53', REVISION = '1', TAG = 'windows-x64';
+const VERSION = '155.0.8059.39', REVISION = '1', TAG = 'windows-x64';
 const path = `/download/distro/chromium-v${VERSION}.${REVISION}/capiumbrowser-${TAG}.tar.gz`;
 
 const ts = String(Math.floor(Date.now() / 1000));
@@ -214,7 +214,7 @@ const res = await fetch(`https://license.capzy.ai${path}`, {
     'X-Capzy-License': KEY,
     'X-Capzy-Timestamp': ts,
     'X-Capzy-Signature': sig,
-    'User-Agent': 'capiumbrowser/1.1.0',
+    'User-Agent': 'capiumbrowser/1.2.0',
   },
 });
 await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`capiumbrowser-${TAG}.tar.gz`));
@@ -226,14 +226,14 @@ await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`capiumbrowser-$
 import hashlib, hmac, time, urllib.request
 
 KEY = "cap_your_key_here"
-VERSION, REVISION, TAG = "153.0.8010.53", "1", "windows-x64"
+VERSION, REVISION, TAG = "155.0.8059.39", "1", "windows-x64"
 path = f"/download/distro/chromium-v{VERSION}.{REVISION}/capiumbrowser-{TAG}.tar.gz"
 
 ts = str(int(time.time()))
 sig = hmac.new(KEY.encode(), f"{ts}.{path}".encode(), hashlib.sha256).hexdigest()
 req = urllib.request.Request("https://license.capzy.ai" + path, headers={
     "X-Capzy-License": KEY, "X-Capzy-Timestamp": ts, "X-Capzy-Signature": sig,
-    "User-Agent": "capiumbrowser/1.1.0",
+    "User-Agent": "capiumbrowser/1.2.0",
 })
 with urllib.request.urlopen(req) as r, open(f"capiumbrowser-{TAG}.tar.gz", "wb") as f:
     f.write(r.read())
@@ -247,8 +247,8 @@ returns the three headers, and `download.distro_path(version, tag)` builds the p
 Extract it, then point the SDK at it — no re-download:
 
 ```bash
-mkdir -p ~/.capium && tar -xzf capiumbrowser-windows-x64.tar.gz -C ~/.capium/capium-152-windows-x64
-export CAPIUM_BINARY=~/.capium/capium-152-windows-x64/chrome     # chrome.exe on Windows
+mkdir -p ~/.capium && tar -xzf capiumbrowser-linux-x64.tar.gz -C ~/.capium
+export CAPIUM_BINARY=~/.capium/capiumbrowser-linux-x64/capium
 ```
 
 Or drop the extracted `capium-*` folder under `CAPIUM_HOME` and the SDK discovers it automatically.
@@ -888,8 +888,8 @@ launches **headed**, which reads cleaner than headless.
 | Linux arm64 | `linux-arm64` | Declared in the manifest; not yet published or covered by the three-host audit |
 
 The SDK auto-detects your host and downloads the matching tag; macOS Intel and Windows ARM are **not**
-published and raise a clear error. The **1.2.0** candidate targets **Chromium 155.0.8059.39, revision 1** on Windows x64,
-macOS arm64 and Linux x64. It remains a draft until the browser artifacts and SDK release are published.
+published and raise a clear error. The **1.2.0** release uses **Chromium 155.0.8059.39, revision 1** on Windows x64,
+macOS arm64 and Linux x64. Browser downloads are available with a valid license. Linux arm64 remains unpublished.
 
 ---
 
