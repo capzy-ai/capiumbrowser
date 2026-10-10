@@ -36,8 +36,8 @@ CAPIUM_BINARY = os.environ.get("CAPIUM_BINARY", "/opt/capium/capium")
 # ---------------------------------------------------------------------------
 # The binary reads its key from the ENVIRONMENT (never argv/`ps`), so just set
 # CAPIUM_LICENSE_KEY in this process and Selenium's child inherits it. Keys look
-# like cap_XXXXXXXXXXXXXXXXXXXXXXXX. Alternatively drop it in ~/.capium/license
-# as a line:  KEY=cap_XXXXXXXXXXXXXXXXXXXXXXXX
+# like cap_your_license_key. Alternatively drop it in ~/.capium/license
+# as a line:  KEY=cap_your_license_key
 # Optional: CAPIUM_LICENSE_SERVER=<url> overrides the default license service.
 if not os.environ.get("CAPIUM_LICENSE_KEY"):
     print("warning: CAPIUM_LICENSE_KEY is not set -- the binary will fail closed.")

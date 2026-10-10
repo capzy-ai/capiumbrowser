@@ -41,6 +41,9 @@ jobs:
           node-version: "22"
       - run: npm install
       - run: npm test
+      - name: Check release tag
+        if: github.event_name == 'release'
+        run: node -e "if(process.env.GITHUB_REF_NAME !== 'v'+require('./package.json').version) throw Error('Release tag does not match Node package version')"
 
   publish:
     name: Publish to npm
@@ -57,7 +60,7 @@ jobs:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
       - name: Update npm (trusted publishing needs >= 11.5)
-        run: npm install -g npm@latest
+        run: npm install -g npm@^11
       - run: npm install
       - name: Publish
         run: npm publish --access public

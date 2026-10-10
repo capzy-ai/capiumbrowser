@@ -96,6 +96,7 @@ function readLaunchStatus(statusPath) {
   if (!raw.trim()) return null;
   const nl = raw.indexOf('\n');
   const code = (nl === -1 ? raw : raw.slice(0, nl)).trim();
+  if (code === '0') return null;
   const msg = (nl === -1 ? '' : raw.slice(nl + 1)).trim() ||
     'the browser refused to start for a licensing reason';
   const Cls = STATUS_CODES[code] || CapiumLicenseError;

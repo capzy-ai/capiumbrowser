@@ -44,8 +44,8 @@ function buildArgs({ seed, platform, stealthArgs, timezone, locale, extensionPat
   let args = [];
   if (stealthArgs) {
     args = args.concat(config.getDefaultStealthArgs(seed, platform));
-    // Headless: pin the maximized-1080p-Windows screen/viewport (see config), unless the
-    // caller already set their own screen/window via extra args.
+    // Keep the engine's seeded screen. Use initial window bounds only when
+    // the caller has not provided screen/window flags.
     if (headless && !config.hasScreenOverride(extra)) {
       args = args.concat(config.getHeadlessDefaultArgs());
     }

@@ -28,7 +28,7 @@ The key is passed as a **BuildKit secret** so it never lands in an image layer
 or `docker history`:
 
 ```bash
-export CAPIUM_LICENSE_KEY=cap_xxxxxxxxxxxxxxxxxxxx
+export CAPIUM_LICENSE_KEY=cap_your_license_key
 
 DOCKER_BUILDKIT=1 docker buildx build --platform linux/arm64 \
   --secret id=capium_license,env=CAPIUM_LICENSE_KEY \

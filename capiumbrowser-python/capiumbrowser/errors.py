@@ -86,5 +86,7 @@ def read_launch_status(path):
     if not raw.strip():
         return None
     code, _, msg = raw.partition("\n")
+    if code.strip() == '0':
+        return None
     msg = msg.strip() or "the browser refused to start for a licensing reason"
     return _STATUS_CODES.get(code.strip(), CapiumLicenseError)(msg)

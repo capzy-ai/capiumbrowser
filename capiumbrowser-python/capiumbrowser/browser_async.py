@@ -15,7 +15,8 @@ from ._driver import get_async_playwright
 from . import config
 from .network import proxy as _proxy
 from .licensing import client as _license
-from .browser import _resolve_binary, _build_args, _new_status_file, _clear_status_file
+from .licensing import readiness as _readiness
+from .browser import _resolve_binary, _build_args, _new_status_file, _clear_status_file, _apply_viewport_defaults
 from .errors import translate_launch_error, read_launch_status
 
 
@@ -74,9 +75,9 @@ async def launch_async(seed=None, platform="windows", headless=False, proxy=None
                        license_preflight=True, driver=None, **kwargs):
     """Async launch -> Browser (await browser.close() also stops Playwright).
 
-    driver: "playwright" (default) or "patchright" (closes the Runtime.enable CDP tell for
-    DataDome/Kasada-class detectors; env CAPIUM_DRIVER=patchright also works; binary spoofing
-    unaffected). See capiumbrowser._driver.
+    driver: "playwright" (default) or the installed "patchright" fork.
+    CAPIUM_DRIVER=patchright also works. Evaluation-world defaults and API
+    compatibility depend on the installed version. See capiumbrowser._driver.
     """
     await _license_preflight_async(license_key, license_server, license_preflight)
     key, _ = _license.effective(license_key, license_server)
@@ -95,10 +96,18 @@ async def launch_async(seed=None, platform="windows", headless=False, proxy=None
     # the caller can override by passing ignore_default_args explicitly.
     kwargs.setdefault("ignore_default_args", list(config.IGNORE_DEFAULT_ARGS))
     pw = await get_async_playwright(driver)().start()
+    browser = None
     try:
         browser = await pw.chromium.launch(executable_path=binpath, headless=headless,
                                            args=launch_args, env=env, **proxy_kwargs, **kwargs)
+        await _readiness.wait_async(binpath, status_path, kwargs.get('timeout', 30000))
     except Exception as e:
+        # Native refusal already terminates the browser; closing its dead CDP connection can hang.
+        if not read_launch_status(status_path) and browser is not None:
+            try:
+                await browser.close()
+            except Exception:
+                pass
         try:
             await pw.stop()
         except Exception:
@@ -110,7 +119,7 @@ async def launch_async(seed=None, platform="windows", headless=False, proxy=None
         raise
     _clear_status_file(status_path)
     browser._capium_seed = seed
-    return _wrap_close_async(browser, pw)
+    return _wrap_close_async(_apply_viewport_defaults(browser, asynchronous=True), pw)
 
 
 async def launch_persistent_context_async(user_data_dir, seed=None, platform="windows",
@@ -140,11 +149,19 @@ async def launch_persistent_context_async(user_data_dir, seed=None, platform="wi
     # the caller can override by passing ignore_default_args explicitly.
     kwargs.setdefault("ignore_default_args", list(config.IGNORE_DEFAULT_ARGS))
     pw = await get_async_playwright(driver)().start()
+    ctx = None
     try:
         ctx = await pw.chromium.launch_persistent_context(
             user_data_dir, executable_path=binpath, headless=headless,
             args=launch_args, env=env, **proxy_kwargs, **kwargs)
+        await _readiness.wait_async(binpath, status_path, kwargs.get('timeout', 30000))
     except Exception as e:
+        # Native refusal already terminates the browser; closing its dead CDP connection can hang.
+        if not read_launch_status(status_path) and ctx is not None:
+            try:
+                await ctx.close()
+            except Exception:
+                pass
         try:
             await pw.stop()
         except Exception:

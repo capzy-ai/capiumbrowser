@@ -6,16 +6,15 @@ capiumbrowser -- a drop-in stealth browser SDK on top of Playwright.
     page = browser.new_context().new_page()
     page.goto("https://fingerprint.com/demo/")
 
-Playwright is a normal pip dependency, so you update the engine independently:
+Playwright is a normal pip dependency, so you update the automation driver independently:
     pip install -U playwright
 
-The browser itself is the Capium stealth Chromium (driven via its `capium` wrapper). All
-fingerprint spoofing is in the binary (001 -> developer_tools=false, 009 -> navigator.webdriver
-=false, device/UA/GPU/canvas), so the default vanilla-Playwright driver is clean for most targets.
-Against CDP-detecting vendors (DataDome/Kasada), opt into the drop-in `patchright` driver
-(`pip install capiumbrowser[patchright]`, then `driver="patchright"` or `CAPIUM_DRIVER=patchright`):
-it never calls Runtime.enable (uses isolated worlds), closing the one tell the binary can't --
-a driver-layer CDP signature. Binary spoofing is unaffected either way.
+The browser is Capium Chromium; native fingerprint policies live in its C++
+implementation. The default driver is Playwright. Select the installed Patchright
+fork with `driver="patchright"` or `CAPIUM_DRIVER=patchright` after installing
+`capiumbrowser[patchright]`. Its context selection, init scripts and API behavior
+depend on the installed version. Driver and native inspector policies can both
+affect compatibility and detector results; see capiumbrowser._driver.
 
 Docs: https://docs.capiumbrowser.com  ·  Site: https://capiumbrowser.com
 """

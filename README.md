@@ -40,7 +40,7 @@ Not a patched config. Not a JavaScript injection. A real Chromium binary whose f
 | 🟨 **Node.js** — Playwright *or* Puppeteer | `npm install capiumbrowser playwright-core`<br>`npm install capiumbrowser puppeteer-core` | [capiumbrowser-node/](capiumbrowser-node/) |
 
 - **Source-level C++ stealth** — User-Agent & UA-CH, WebGL/GPU, canvas, audio, screen, hardware, fonts, voices, WebRTC, `navigator.webdriver`, DevTools, pointer, client-rects — all rewritten **in the browser's own source**, below the JavaScript layer.
-- **Coherent per-seed identities** — one integer **seed** derives a complete, self-consistent device (OS, GPU, cores, memory, screen, fonts, UA). Same seed ⇒ same machine, on any host, every run.
+- **Repeatable per-seed settings** — one integer **seed** selects OS, GPU names, cores, memory, screen, fonts and UA settings. Actual pixels, font availability, capabilities and detector results depend on the host and rendering backend.
 - **`humanize=True`** — ordinary `page.click` / `fill` / `type` become curved, human-timed mouse, keyboard, and scroll. One flag, and interactions look human rather than scripted.
 - **`geoip=True`** — the binary resolves its own exit IP through your proxy and pins timezone, WebRTC IP, geolocation, and `navigator.languages` to match. The clock, locale, and IP all tell one story.
 - **Plain drivers over CDP** — no patched driver, no init-script signature, no `Object.defineProperty` shim to detect. Update the engine independently (`pip install -U playwright` / `npm i -U playwright-core`).
@@ -276,12 +276,14 @@ Or drop the extracted `capium-*` folder under `CAPIUM_HOME` and the SDK discover
   JavaScript or flip flags. Every Chrome update breaks them, and modern anti-bot ML detects the patches
   themselves — the very act of hiding trips the alarm.
 - **Capium patches Chromium source.** Fingerprints are modified at the C++ level and compiled into the
-  binary. Detection sites see a real browser because it *is* one — no init script, no `toString`
-  tampering, no CDP hooks to sniff.
+  binary. The SDK does not need fingerprint init scripts. Native functions, automation interactions
+  and detector classifications are measured separately in the linked audits.
 - **Coherence is the product.** A convincing device isn't one clean signal; it's *every* signal telling
   the same story. Capium derives GPU, screen, fonts, UA-CH, timezone, locale, and WebRTC from a single
-  seed + your proxy's geography, so nothing contradicts anything else.
-- **Same behavior everywhere.** Local, Docker, VPS, Lambda — no environment-specific config.
+  seed + your proxy's geography. Fonts, graphics capabilities and cross-OS rendering still need
+  validation on the actual host.
+- **Host qualification matters.** Local, Docker, VPS and Lambda need suitable graphics/display
+  dependencies and separate acceptance tests.
 - **Works with your stack.** Drop-in stealth for Selenium, undetected-chromedriver, browser-use, Crawl4AI,
   Crawlee, Scrapling, LangChain, and more. See [integrations](#framework-integrations).
 
@@ -316,11 +318,11 @@ See **[capiumbrowser.com/#pricing](https://capiumbrowser.com/#pricing)** for cur
 ### Get a key
 
 1. Create an account at **[capiumbrowser.com](https://capiumbrowser.com)** and create a license (start with the
-   free 1-session tier). Keys look like `cap_XXXXXXXXXXXXXXXXXXXXXXXX`.
+   free 1-session tier). Keys look like `cap_your_license_key`.
 2. Make it available to the SDK any one way (checked in this order):
 
    ```bash
-   export CAPIUM_LICENSE_KEY="cap_xxxxxxxxxxxxxxxxxxxx"
+   export CAPIUM_LICENSE_KEY="cap_your_license_key"
    # optional — defaults to https://license.capzy.ai
    export CAPIUM_LICENSE_SERVER="https://license.capzy.ai"
    ```
@@ -343,27 +345,29 @@ Handle license errors with typed exceptions — `CapiumSeatLimitError`, `CapiumE
 
 ## What a persona reads
 
-On a **matching-OS host** (a Windows persona on Windows, a macOS persona on macOS), a Capium persona reads
-clean against a modern fingerprinting suite — with the correct GPU, fonts, and voices for the claimed device:
+The proxy-isolated Chrome 155 development baseline measures Python sync/async and Node
+Playwright/Puppeteer separately. Matched Windows/macOS personas report tampering false in
+the measured cases; Linux and cross-OS personas remain flagged. These observations apply
+to the recorded packages, hosts and launch recipes. A seeded GPU name does not change
+the physical rendering device. See the [full baseline](../docs/reports/sdk-public-audit-155-2026-10-09.html).
 
 | Signal | Stock Playwright Chromium | Capium |
 |---|---|---|
 | `navigator.webdriver` | `true` | **`false`** (source-level) |
 | FingerprintJS **bot detection** | detected | **not detected** |
-| FingerprintJS **tampering / anti-detect** | — | **false** |
+| Fingerprint **tampering / anti-detect** | depends on host and launch | measured separately; Linux and cross-OS cases remain flagged |
 | DevTools/CDP console tell (FPJS `developer_tools`) | detected | **false** |
-| User-Agent | `HeadlessChrome/…` | **`Chrome/152.0.0.0`** |
+| User-Agent | may include `HeadlessChrome/…` | Chrome version comes from the selected engine or explicit UA |
 | `window.chrome` | thin / missing | **present, like real Chrome** |
-| Google TTS voices | absent | **present (matches real Chrome)** |
-| JA4 TLS fingerprint | differs from Chrome | **matches stock Chrome** |
+| Google TTS voices | inspect the installed browser | persona voice list; playback depends on installed engines |
+| JA4 TLS fingerprint | measure against matching Chrome | 18 recorded SDK comparisons match stock 155 |
 | WebRTC IP behind a proxy | real IP leaks | **pinned to the proxy exit** |
 
-> **Honesty matters more than a green screenshot.** A **GPU-less headless Linux** box makes WebGL fall back
-> to SwiftShader, which any modern suite (and stock Chrome) flags as `virtual_machine` / `anti_detect` — an
-> artifact of the *host*, not the browser. Run **headed** (Xvfb is fine) on a GPU-backed, matching-OS host
-> for the clean verdict. And `os_mismatch` is a **network** signal — genuine Chrome trips it behind some
-> proxies/NATs too, so treat it as a routing concern, not a browser one. Full method:
-> [Verifying stealth](https://docs.capiumbrowser.com).
+> GPU presence, headed mode and a matching persona do not guarantee a clean verdict.
+> Linux tests with actual GT 1030 Vulkan and GPU-hidden Mesa both initialize WebGL and
+> still receive positive tampering results. Console masking, ML, anomaly, bot, VM and
+> developer-tools results must be recorded independently. See the
+> [measurement requirements](../docs/SDK-GPU-AUDIT.md).
 
 ---
 
@@ -374,7 +378,7 @@ clean against a modern fingerprinting suite — with the correct GPU, fonts, and
 | Patch level | none | JS injection | config / flags | **C++ (Chromium source)** |
 | Survives Chrome updates | n/a | breaks often | breaks often | **yes (rebased builds)** |
 | `navigator.webdriver` | `true` | `false` | `false` | **`false`** |
-| Coherent per-seed device | no | no | no | **yes** |
+| Per-seed identity settings | no | no | no | **yes; host capabilities still require validation** |
 | Timezone/locale/WebRTC ↔ proxy | manual | manual | manual | **auto (`geoip=True`)** |
 | Human input | no | no | no | **`humanize=True`** |
 | Playwright API | native | native | no (Selenium) | **native** |
@@ -878,13 +882,14 @@ launches **headed**, which reads cleaner than headless.
 
 | Platform | Distro tag | Notes |
 |---|---|---|
-| Windows x86_64 | `windows-x64` | Native GPU/fonts back a Windows persona flawlessly |
-| macOS arm64 (Apple Silicon) | `macos-arm64` | M1–M4 by design (covers 2020+ Macs); a Windows persona uses installed Windows fonts for fallback |
-| Linux x86_64 | `linux-x64` | Defaults to a Windows persona; supply Windows fonts for the cleanest result |
-| Linux arm64 | `linux-arm64` | Same as Linux x64 for aarch64 hosts |
+| Windows x86_64 | `windows-x64` | Native GPU/fonts support a matching Windows persona; cross-OS detector results need separate checks |
+| macOS arm64 (Apple Silicon) | `macos-arm64` | Native Apple graphics support a matching macOS persona; model validity remains constrained by the device pool |
+| Linux x86_64 | `linux-x64` | Defaults to a Windows persona; select a matching Linux persona and verify the graphics stack |
+| Linux arm64 | `linux-arm64` | Declared in the manifest; not yet published or covered by the three-host audit |
 
 The SDK auto-detects your host and downloads the matching tag; macOS Intel and Windows ARM are **not**
-published and raise a clear error. Capium currently targets **Chromium 152**.
+published and raise a clear error. The **1.2.0** candidate targets **Chromium 155.0.8059.39, revision 1** on Windows x64,
+macOS arm64 and Linux x64. It remains a draft until the browser artifacts and SDK release are published.
 
 ---
 

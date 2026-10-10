@@ -25,12 +25,12 @@ const SDK_VERSION = require('../package.json').version;
 // Used only if channels.json can't be read (corrupt/removed install). ensureBinary() raises a
 // clear error long before the "unsupported platform" case matters; this keeps lookups total.
 const FALLBACK_VERSIONS = {
-  'windows-x64': '153.0.8010.52', // real Chrome 152 stable per OS (win/mac .65, linux .64)
-  'macos-arm64': '153.0.8010.52',
-  'linux-x64': '153.0.8010.52',
-  'linux-arm64': '153.0.8010.52', // declared; not yet published (see channels.json)
+  'windows-x64': '155.0.8059.39', // Chromium 155 release candidate on all supported hosts
+  'macos-arm64': '155.0.8059.39',
+  'linux-x64': '155.0.8059.39',
+  'linux-arm64': '155.0.8059.39', // declared; not yet published (see channels.json)
 };
-const DEFAULT_BINARY_VERSION = '153.0.8010.52';
+const DEFAULT_BINARY_VERSION = '155.0.8059.39';
 
 function loadStable() {
   // The `channels.stable` map from the bundled manifest, or null if unreadable.

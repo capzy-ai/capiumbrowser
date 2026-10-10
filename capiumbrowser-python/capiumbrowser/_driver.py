@@ -1,23 +1,20 @@
 """
 capium._driver -- pick the Playwright-compatible driver that talks CDP to the capium binary.
 
-Default is vanilla **Playwright**. Opt into **patchright** (a drop-in Playwright fork, identical
-API) with ``driver="patchright"`` or ``CAPIUM_DRIVER=patchright`` to close the ``Runtime.enable``
-CDP-automation leak: vanilla Playwright's driver calls ``Runtime.enable`` (10x) and evaluates in
-the page's MAIN world -- a CDP signature that Runtime-domain-detecting anti-bots (DataDome, etc.)
-fingerprint. Patchright never enables the Runtime domain: it acquires execution contexts via
-isolated worlds (``Page.createIsolatedWorld`` + ``Runtime.addBinding{executionContextId}`` +
-``Page.addScriptToEvaluateOnNewDocument``), so there is no ``Runtime.enable`` to detect.
+Default is vanilla Playwright. ``driver="patchright"`` or
+``CAPIUM_DRIVER=patchright`` selects the installed Playwright-compatible fork.
+Patchright changes context acquisition, bindings and init-script delivery to
+avoid Runtime.enable in its normal driver path. Its evaluation-world defaults
+and API compatibility depend on the installed version; page globals and object
+handles may require explicit main-context selection.
 
-Orthogonal to capium's stealth: ALL of capium's fingerprint spoofing lives in the C++ binary
-(navigator.webdriver, device/UA/GPU/canvas, patch 001 -> developer_tools=false). The driver swap
-changes only HOW the SDK drives the browser, never what the browser reports -- so patchright keeps
-every binary-level spoof intact and only removes the driver-layer CDP tell.
-
-Why opt-in (not default): on FingerprintJS **Pro**, suppressing the Runtime/devtools side-effect
-can push the anti_detect_browser/tampering ML the other way (patch 001 already keeps
-developer_tools=false cleanly there). So choose the driver per target -- patchright against
-CDP-detecting vendors (DataDome/Kasada/...), the default elsewhere. See docs for the trade-off.
+Capium's native fingerprint policies remain in C++. Driver selection can still
+change observations and detector results. Development engine 155 honors the
+requested execution context by default and masks page/worker console events
+independently; engine 153 uses the older default isolation policy. Masking does
+not remove all inspector side effects or guarantee a detector classification.
+See the native inspector audit in docs/reports for measured compatibility and
+site outcomes. Published SDK metadata continues to select engine 153.
 """
 import os
 

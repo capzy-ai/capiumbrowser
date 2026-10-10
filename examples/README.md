@@ -13,7 +13,7 @@ Every example expects a license key in the environment — the binary is
 license-gated and **fails closed**:
 
 ```bash
-export CAPIUM_LICENSE_KEY=cap_xxxxxxxxxxxxxxxxxxxx
+export CAPIUM_LICENSE_KEY=cap_your_license_key
 export CAPIUM_SEED=54321          # optional: pin a coherent identity
 export CAPIUM_PLATFORM=windows    # optional: windows | macos | linux
 export CAPIUM_PROXY=http://user:pass@host:port   # optional

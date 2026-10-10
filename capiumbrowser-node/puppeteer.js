@@ -29,6 +29,7 @@ const config = require('./lib/config');
 const download = require('./lib/download');
 const human = require('./lib/human');
 const license = require('./lib/license');
+const readiness = require('./lib/license-readiness');
 const { CapiumError, translateLaunchError, readLaunchStatus } = require('./lib/errors');
 const { proxyAndGeoArgs, buildArgs, newStatusFile, clearStatusFile } =
   require('./lib/launch-common');
@@ -183,7 +184,7 @@ async function launch(opts = {}) {
   const ida = ignoreDefaultArgs === undefined ? config.IGNORE_DEFAULT_ARGS : ignoreDefaultArgs;
   let browser;
   try {
-    browser = await puppeteer.launch({
+    const pending = puppeteer.launch({
       executablePath: prep.binPath,
       headless,
       args: launchArgs,
@@ -191,8 +192,13 @@ async function launch(opts = {}) {
       defaultViewport: 'defaultViewport' in rest ? rest.defaultViewport : null,
       ignoreDefaultArgs: ida,
       ...rest,
-    });
+    }).then(handle => { browser = handle; return handle; });
+    await readiness.withLaunch(pending, prep.binPath, prep.statusPath, rest.timeout);
   } catch (e) {
+    // A native refusal terminates the process; closing its dead CDP connection can hang.
+    if (!readLaunchStatus(prep.statusPath) && browser) {
+      try { await browser.close(); } catch {}
+    }
     await throwTranslated(e, prep.statusPath);
   }
   clearStatusFile(prep.statusPath);

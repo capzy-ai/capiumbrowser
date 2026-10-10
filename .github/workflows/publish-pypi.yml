@@ -40,6 +40,9 @@ jobs:
           python -m pip install --upgrade pip pytest
           python -m pip install -e .
           python -m pytest tests -q
+      - name: Check release tag
+        if: github.event_name == 'release'
+        run: python -c "import os; from capiumbrowser._version import __version__; assert os.environ['GITHUB_REF_NAME'] == 'v' + __version__, 'Release tag does not match Python package version'"
       - name: Build
         run: |
           python -m pip install --upgrade build

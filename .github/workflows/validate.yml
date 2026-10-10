@@ -1,0 +1,49 @@
+name: Validate SDK release candidate
+
+on:
+  push:
+    branches: [main, 'release/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: capiumbrowser-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install --upgrade pip pytest build twine
+      - run: python -m pip install -e .
+      - run: python -m pytest tests -q
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-release-candidate
+          path: capiumbrowser-python/dist/*
+
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: capiumbrowser-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+      - run: npm test
+      - run: npm pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: node-release-candidate
+          path: capiumbrowser-node/capiumbrowser-*.tgz

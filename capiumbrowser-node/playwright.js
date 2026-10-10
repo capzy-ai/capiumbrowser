@@ -25,6 +25,7 @@ const config = require('./lib/config');
 const download = require('./lib/download');
 const human = require('./lib/human');
 const license = require('./lib/license');
+const readiness = require('./lib/license-readiness');
 const { CapiumError, translateLaunchError, readLaunchStatus } = require('./lib/errors');
 const { proxyAndGeoArgs, buildArgs, newStatusFile, clearStatusFile } =
   require('./lib/launch-common');
@@ -181,12 +182,17 @@ async function launch(opts = {}) {
   const pw = requireDriver();
   let browser;
   try {
-    browser = await pw.chromium.launch({
+    const pending = pw.chromium.launch({
       executablePath: prep.binPath, headless, args: prep.launchArgs, env: prep.env,
       ignoreDefaultArgs: config.IGNORE_DEFAULT_ARGS,   // strip automation + forced-software WebGL defaults
       ...prep.launchOptions, ...rest,
-    });
+    }).then(handle => { browser = handle; return handle; });
+    await readiness.withLaunch(pending, prep.binPath, prep.statusPath, rest.timeout);
   } catch (e) {
+    // A native refusal terminates the process; closing its dead CDP connection can hang.
+    if (!readLaunchStatus(prep.statusPath) && browser) {
+      try { await browser.close(); } catch {}
+    }
     await throwTranslated(e, prep.statusPath);
   }
   clearStatusFile(prep.statusPath);
@@ -215,12 +221,17 @@ async function launchPersistentContext(userDataDir, opts = {}) {
   const pw = requireDriver();
   let ctx;
   try {
-    ctx = await pw.chromium.launchPersistentContext(userDataDir, {
+    const pending = pw.chromium.launchPersistentContext(userDataDir, {
       executablePath: prep.binPath, headless, args: prep.launchArgs, env: prep.env,
       ignoreDefaultArgs: config.IGNORE_DEFAULT_ARGS,   // strip automation + forced-software WebGL defaults
       ...prep.launchOptions, ...rest,
-    });
+    }).then(handle => { ctx = handle; return handle; });
+    await readiness.withLaunch(pending, prep.binPath, prep.statusPath, rest.timeout);
   } catch (e) {
+    // A native refusal terminates the process; closing its dead CDP connection can hang.
+    if (!readLaunchStatus(prep.statusPath) && ctx) {
+      try { await ctx.close(); } catch {}
+    }
     await throwTranslated(e, prep.statusPath);
   }
   clearStatusFile(prep.statusPath);

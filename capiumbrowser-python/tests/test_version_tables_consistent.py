@@ -1,4 +1,4 @@
-"""Enforce the VERSION-BUMP invariant automatically: the FOUR C++ version tables must agree on
+"""Enforce the VERSION-BUMP invariant automatically: the default constants and shared table agree on
 the current major's per-platform build. A drift between them is exactly what caused the UA-CH
 leaks (stale pool; seed-parity patch flip). See docs/VERSION-BUMP.md.
 
@@ -53,17 +53,27 @@ def test_per_platform_tables_agree_on_current_major():
     first = re.findall(r'"([\d.]+)"', pool.group(1))[0]
     assert first == win, f"kChromiumVersions[0] {first} != kChromeVersionWindows {win}"
 
-    # kCapiumChromeBuilds current-major row {major, win, mac, linux} must match exactly.
-    row = re.search(rf'\{{\s*{major}\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*\}}',
-                    _read(_UAUTILS))
-    assert row, f"kCapiumChromeBuilds row for major {major} not found"
-    assert (row.group(1), row.group(2), row.group(3)) == (win, mac, lin), \
-        f"kCapiumChromeBuilds[{major}] {row.groups()} != fingerprint_data.h ({win},{mac},{lin})"
+    assert _const(fp, 'kChromeDefaultVersion') == win
+    # Both native code paths include the same table and parser. A second table
+    # would reintroduce the full-UA/platform/invalid-version disagreements.
+    embedder = _read(_UAUTILS)
+    assert 'kCapiumChromeBuilds[]' not in embedder
+    assert '#include "third_party/blink/common/user_agent/capium_chrome_versions.inc"' in embedder
+    assert 'CapiumChromeVersionOverride(cl)' in embedder
 
-    # kStable (.inc) current-major entry -- PER-PLATFORM {major, win, mac, linux} (regenerated
-    # from kCapiumChromeBuilds so the JS UA-CH spoof path matches the HTTP header per platform).
+    # The one shared table holds all three platform columns.
     inc = re.search(rf'\{{\s*"{major}"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*\}}',
                     _read(_INC))
     assert inc, f"kStable entry for major {major} not found"
     assert (inc.group(1), inc.group(2), inc.group(3)) == (win, mac, lin), \
         f"kStable[{major}] {inc.groups()} != fingerprint_data.h ({win},{mac},{lin})"
+
+
+def test_chrome154_override_row_is_available_on_both_native_paths():
+    # Verified published builds; a historical-major override must not fall back
+    # to the current 155 engine's versions when its UA has been reduced.
+    row = re.search(r'\{\s*"154"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*\}', _read(_INC))
+    assert row and row.groups() == ('154.0.8037.100', '154.0.8037.100', '154.0.8037.97')
+    metadata = os.path.join(_REPO, 'src', 'third_party', 'blink', 'common', 'user_agent', 'user_agent_metadata.cc')
+    for path in (_UAUTILS, metadata):
+        assert '#include "third_party/blink/common/user_agent/capium_chrome_versions.inc"' in _read(path)

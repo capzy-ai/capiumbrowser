@@ -1,10 +1,10 @@
 """
-capium.browser -- launch a stealth Capium browser through vanilla Playwright.
+capium.browser -- launch Capium through a selected Playwright-compatible driver.
 
-We use Playwright's NATIVE launch()/launch_persistent_context() with executable_path pointed
-at the capium bash wrapper (which adds GL/geoip/font/bluetooth/storage flags). No Patchright:
-capium's in-binary patches (001 -> developer_tools=false, 009 -> navigator.webdriver=false)
-provide the CDP hardening, so plain Playwright avoids the common automation tells.
+We use the selected driver's launch()/launch_persistent_context() with executable_path
+pointed at the Capium binary or POSIX wrapper. Playwright is the default; an installed
+Patchright driver is optional. Native policies and driver choice can change evaluation
+worlds and detector observations. Neither selection guarantees a clean classification.
 
 Public API (Part 1):
     launch(...)                     -> Browser
@@ -14,6 +14,7 @@ Proxy and humanize are layered in by later modules (see network/proxy.py / human
 coherence is resolved inside the binary via the --geoip flag (no SDK-side probe).
 """
 import atexit
+from functools import wraps
 import os
 import sys
 import tempfile
@@ -23,6 +24,7 @@ from ._driver import get_sync_playwright
 from . import config
 from .network import proxy as _proxy
 from .licensing import client as _license
+from .licensing import readiness as _readiness
 from .errors import translate_launch_error, read_launch_status
 
 
@@ -119,8 +121,8 @@ def _build_args(seed, platform, stealth_args, timezone, locale, extension_paths,
     args = []
     if stealth_args:
         args += config.get_default_stealth_args(seed, platform)
-        # Headless: pin the maximized-1080p-Windows screen/viewport (see config), unless the
-        # caller already set their own screen/window via extra args.
+        # Keep the engine's seeded screen. Use initial window bounds only when
+        # the caller has not provided screen/window flags.
         if headless and not _has_screen_override(extra):
             args += config.get_headless_default_args()
     if timezone:
@@ -207,6 +209,31 @@ def _wrap_close(obj, pw):
     return obj
 
 
+def _apply_viewport_defaults(browser, asynchronous=False):
+    """Match the other launch APIs: use the window unless the caller chooses a viewport."""
+    def decorate(original):
+        def options(kwargs):
+            if 'viewport' not in kwargs and 'no_viewport' not in kwargs:
+                kwargs = dict(kwargs, no_viewport=True)
+            return kwargs
+
+        if asynchronous:
+            @wraps(original)
+            async def invoke(*args, **kwargs):
+                return await original(*args, **options(kwargs))
+        else:
+            @wraps(original)
+            def invoke(*args, **kwargs):
+                return original(*args, **options(kwargs))
+        return invoke
+
+    for name in ('new_context', 'new_page'):
+        original = getattr(browser, name, None)
+        if callable(original):
+            setattr(browser, name, decorate(original))
+    return browser
+
+
 def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None, args=None,
            stealth_args=True, timezone=None, locale=None, extension_paths=None, binary=None,
            license_key=None, license_server=None, license_through_proxy=False,
@@ -228,12 +255,11 @@ def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None
                     Set False for a dev build that runs without enforcement. Server-side
                     reasons (expired / seat / down) come back from the binary's own check via
                     its status file -- the SDK never re-verifies over the network.
-    driver        : CDP driver -- "playwright" (default) or "patchright". patchright is a
-                    drop-in Playwright fork that never calls Runtime.enable (it uses isolated
-                    worlds), closing a CDP-automation tell that Runtime-domain detectors
-                    (DataDome/Kasada) fingerprint. All binary spoofing is unaffected. Opt-in
-                    per target (env CAPIUM_DRIVER=patchright also works); needs `pip install
-                    patchright`. See capiumbrowser._driver for the trade-off.
+    driver        : "playwright" (default) or "patchright". The installed Patchright
+                    fork changes context acquisition and evaluation-world defaults.
+                    Compatibility depends on its version; globals and handles may need
+                    explicit main-context selection. CAPIUM_DRIVER=patchright also works;
+                    requires `pip install patchright`. See capiumbrowser._driver.
     kwargs        : forwarded to Playwright's chromium.launch (e.g. slow_mo=...).
     Returns a Browser whose .close() also stops Playwright.
     """
@@ -255,10 +281,18 @@ def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None
     # the caller can override by passing ignore_default_args explicitly.
     kwargs.setdefault("ignore_default_args", list(config.IGNORE_DEFAULT_ARGS))
     pw = get_sync_playwright(driver)().start()
+    browser = None
     try:
         browser = pw.chromium.launch(executable_path=binpath, headless=headless,
                                      args=launch_args, env=env, **proxy_kwargs, **kwargs)
+        _readiness.wait(binpath, status_path, kwargs.get('timeout', 30000))
     except Exception as e:
+        # Native refusal already terminates the browser; closing its dead CDP connection can hang.
+        if not read_launch_status(status_path) and browser is not None:
+            try:
+                browser.close()
+            except Exception:
+                pass
         try:
             pw.stop()
         except Exception:
@@ -270,7 +304,7 @@ def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None
         raise
     _clear_status_file(status_path)
     browser._capium_seed = seed
-    return _wrap_close(browser, pw)
+    return _wrap_close(_apply_viewport_defaults(browser), pw)
 
 
 def launch_persistent_context(user_data_dir, seed=None, platform="windows", headless=False,
@@ -305,11 +339,19 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
     # the caller can override by passing ignore_default_args explicitly.
     kwargs.setdefault("ignore_default_args", list(config.IGNORE_DEFAULT_ARGS))
     pw = get_sync_playwright(driver)().start()
+    ctx = None
     try:
         ctx = pw.chromium.launch_persistent_context(
             user_data_dir, executable_path=binpath, headless=headless,
             args=launch_args, env=env, **proxy_kwargs, **kwargs)
+        _readiness.wait(binpath, status_path, kwargs.get('timeout', 30000))
     except Exception as e:
+        # Native refusal already terminates the browser; closing its dead CDP connection can hang.
+        if not read_launch_status(status_path) and ctx is not None:
+            try:
+                ctx.close()
+            except Exception:
+                pass
         try:
             pw.stop()
         except Exception:
@@ -321,10 +363,9 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
         raise
     _clear_status_file(status_path)
     ctx._capium_seed = seed
-    # Headed: size the window to the seed's coherent per-seed screen (keeps viewport ~= screen now
-    # that the default screen is the device-pool resolution, not a forced 1440x900). Headless has
-    # no window manager -- the fixed --window-size=1920,947 from _build_args already governs the
-    # viewport there, so do NOT CDP-resize it to availHeight (that would stretch it to ~1040).
+    # Headed persistent launches fit the window to the selected screen. Headless
+    # keeps its startup bounds (800x600 by default) independent of the seeded screen;
+    # callers can choose larger window bounds explicitly.
     if not headless:
         _fit_window_to_screen(ctx)
     return _wrap_close(ctx, pw)
@@ -335,8 +376,8 @@ def launch_context(seed=None, platform="windows", headless=False, url=None,
     """Convenience: launch() + first context + a page (optionally navigated to `url`).
 
     humanize=True attaches page.human_move/human_click/human_type/human_scroll (see capium.human).
-    Returns (browser, context, page). page.goto(url) is done here so tampering stays clean
-    (driven navigation), matching our launcher behavior.
+    Returns (browser, context, page). An optional URL is navigated after the context and
+    page are created. Detector outcomes depend on the browser and launch configuration.
     """
     browser = launch(seed=seed, platform=platform, headless=headless, **kwargs)
     # no_viewport: let the page fill the real window (fit_window sizes the window to

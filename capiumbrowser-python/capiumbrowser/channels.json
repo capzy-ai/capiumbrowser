@@ -1,31 +1,32 @@
 {
   "_comment": "SINGLE SOURCE OF TRUTH for the current stable Capium browser build per OS/arch. Each OS reaches stable independently -- edit one entry without touching the others. This file ships inside the wheel (the SDK reads it to pick each host's stable build) AND is published to the download server by the release pipeline. `version` is the Chromium version (what the browser reports to the customer -- unchanged by the revision); `revision` is our packaging counter -- the served R2 folder is chromium-v<version>.<revision>/, ALWAYS dotted-suffixed starting at 1 (chromium-v<version>.1/ is the first build, .2/ a same-engine re-spin), so publishing a re-spin never overwrites the artifact older SDKs still fetch. `published: false` means the tag is declared but no artifact exists yet -- the SDK raises a clear 'not published yet' error instead of a raw 404.",
   "schema": 1,
-  "updated": "2026-10-08",
+  "updated": "2026-10-10",
   "channels": {
     "stable": {
       "windows-x64": {
-        "version": "153.0.8010.53",
-        "engine_version": "153.0.8010.52",
-        "revision": 5,
-        "sha256": "3f53b86f80a3b145cb75995615f19c957a74d6a1a0ae1151ff64517b3a931d67",
-        "published": true
+        "version": "155.0.8059.39",
+        "revision": 1,
+        "sha256": "5259e1e9aa100467bc47b42052d6c66859905b47bc2127e55426b305ba7e8425",
+        "published": true,
+        "license_status_protocol": 1
       },
       "macos-arm64": {
-        "version": "153.0.8010.53",
-        "engine_version": "153.0.8010.52",
-        "revision": 6,
-        "sha256": "eca400433d74e5ac3b59fa1764bba783674a05cfc5a34598c8c1d2f02c708e18",
-        "published": true
+        "version": "155.0.8059.39",
+        "revision": 1,
+        "sha256": "ad75a42b162a5fafd62786571cc33f5c0c830815867da4fb57e2926ea8ecfad9",
+        "published": true,
+        "license_status_protocol": 1
       },
       "linux-x64": {
-        "version": "153.0.8010.52",
-        "revision": 5,
-        "sha256": "f65f11a2b15dea523ee95e35cadbbd43c77aba4751cdc0f96f8c138143f041bb",
-        "published": true
+        "version": "155.0.8059.39",
+        "revision": 1,
+        "sha256": "72e958b6a54ddb4fbe5aeb0b986aa6630eca6bf2c65b491cdd11cfa463806525",
+        "published": true,
+        "license_status_protocol": 1
       },
       "linux-arm64": {
-        "version": "153.0.8010.52",
+        "version": "155.0.8059.39",
         "revision": 1,
         "sha256": null,
         "published": false

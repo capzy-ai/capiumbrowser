@@ -2,13 +2,11 @@
 capium.config -- default stealth arguments and binary discovery.
 
 The capium binary is driven through its `capium` bash wrapper (executable_path), which
-adds the GL/Metal backend, geoip, font, bluetooth/share and storage-quota flags per platform.
+supports explicit backend selection and platform flags; geoip remains opt-in.
 This module only builds the *fingerprint-level* Chrome flags and locates that wrapper.
 
-Design note (why no Patchright): capium's own source patches make vanilla Playwright stealthy --
-  001 (disable Runtime.enable console-reporting)  -> FingerprintJS developer_tools = false
-  009 (webdriver)                                 -> navigator.webdriver = false
-so we launch with plain Playwright and let the binary do the CDP hardening.
+The binary handles CDP isolation and console masking, plus the webdriver surface.
+We launch with plain Playwright; detector outcomes still require native host tests.
 """
 import glob
 import os
@@ -18,34 +16,26 @@ import shutil
 # Playwright/Puppeteer default args to SUPPRESS (ignore_default_args) -- these leak automation
 # or force a software render.
 #   --enable-automation         : exposes navigator.webdriver=true + an automation banner.
-#   --enable-unsafe-swiftshader : the driver adds this so headless WebGL "works", but it ENABLES
-#                                 the (for us, broken-ICD) bundled SwiftShader path -> getContext
-#                                 ('webgl')=null headless, or a software-raster tell. Stripping it
-#                                 forces Chromium onto the real GPU (GPU host) or the system Mesa
-#                                 (GPU-less host w/ Mesa) instead of the broken software backend.
+#   --enable-unsafe-swiftshader : permits a software fallback. Keep that choice
+#                                 explicit instead of inheriting a driver's default.
+#                                 The historical 153 package lacked its ICD manifest;
+#                                 the 155 packager includes it. Validate drawing in
+#                                 the deployed environment for either backend.
 IGNORE_DEFAULT_ARGS = ["--enable-automation", "--enable-unsafe-swiftshader"]
 
 
-# Headless default screen/viewport. Headless has no real display, so the per-seed device-pool
-# screen (e.g. 2560x1440) has no window manager to size a matching window against -- the
-# framebuffer would stay at Chromium's small headless default and screen != viewport (a
-# browserscan VM tell). Instead we model the single MOST COMMON real setup: a maximized Chrome
-# window on a 1080p Windows monitor -- screen 1920x1080, viewport 1920x947 (1040 avail height
-# minus ~93px of tab/omnibox/bookmark chrome). This is the dominant real-world viewport, so a
-# headless instance blends into the crowd rather than exposing an unusual size, and screen >
-# viewport stays coherent. Applied only in headless and only when the caller pins no screen of
-# their own (an explicit --fingerprint-screen-* / --window-size in args opts out).
+# The 155 engine selects a seeded screen within these default bounds. Start
+# headless windows small enough to fit its modes without replacing the screen.
+# Explicit screen/window flags take
+# precedence. HEADLESS_SCREEN remains the upper bound for existing consumers.
 HEADLESS_SCREEN = (1920, 1080)
-HEADLESS_VIEWPORT = (1920, 947)
+HEADLESS_VIEWPORT = (800, 600)
 
 
 def get_headless_default_args():
-    """Flags that pin the headless screen+viewport to the maximized-1080p-Windows model."""
-    sw, sh = HEADLESS_SCREEN
+    """Choose startup bounds without replacing the engine's seeded screen."""
     vw, vh = HEADLESS_VIEWPORT
     return [
-        "--fingerprint-screen-width=%d" % sw,
-        "--fingerprint-screen-height=%d" % sh,
         "--window-size=%d,%d" % (vw, vh),
     ]
 
@@ -57,14 +47,10 @@ def get_default_stealth_args(seed=None, platform="windows", screen=None):
 
     seed:     int identity seed (a stable, coherent device per seed). Random if None.
     platform: "windows" | "macos" | "linux" -- the spoofed OS persona.
-    screen:   DEFAULT None -> use the seed's COHERENT per-seed device screen from the binary's
-              device pool (resolution matched to the GPU tier, with a realistic dpr). This is the
-              correct behavior: every persona gets a distinct, GPU-coherent screen, and the SDK
-              sizes the window to it after launch (fit_window) so viewport ~= screen. Passing an
-              explicit (width, height) FORCES that resolution on every seed -- which makes all
-              instances share one screen AND pairs e.g. an RTX 5080 with 1440x900 (incoherent);
-              only do that for a fixed-kiosk scenario. (Previously defaulted to (1440,900), a
-              cross-instance correlation + GPU-incoherence tell -- fixed.)
+    screen:   None uses the binary's seeded screen and DPR. Development 155 defaults
+              vary within 1920x1080. Headless starts with an 800x600 window; its screen
+              remains independent of the viewport. An explicit (width, height) overrides
+              the screen and startup window, including sizes above the default cap.
     """
     args = []
     if seed is not None:
@@ -90,17 +76,16 @@ def get_default_stealth_args(seed=None, platform="windows", screen=None):
         "primaryPointerType=4,availablePointerTypes=4",
         "--no-first-run",
         "--no-default-browser-check",
-        # NOTE: capium "CDP stealth" (isolated-world eval + console-API masking that make vanilla
-        # Playwright behave like patchright vs DataDome/rebrowser) is ON BY DEFAULT in the binary
-        # -- no flag needed. To opt out (e.g. if a solver needs page.evaluate to read the page's
-        # own main-world window globals, which the isolated world can't see), pass
-        # extra=["--capium-disable-cdp-stealth"].
+        # Engine 153 redirects main-world evaluations by default. Development
+        # 155 honors the requested context and keeps console masking independent:
+        # --capium-isolate-cdp-eval opts into legacy isolation;
+        # --capium-disable-console-mask restores page/worker console delivery;
+        # --capium-disable-cdp-stealth disables both policies on either engine.
+        # The published SDK still selects engine 153 until a release is approved.
     ]
-    # Patch 001 makes developer_tools always false, which unmasks FingerprintJS's
-    # tampering ML: per-seed canvas/audio NOISE would then read as tampering, so
-    # default it OFF (measured clean: tampering=false, ml~0.05, anti_detect=false).
-    # Trade-off: personas on the same host share its real canvas (no per-seed canvas
-    # uniqueness) -- pass --fingerprint-noise=true to restore it (accepts tampering).
+    # Keep injected canvas/audio/rectangle noise opt-in. Device fonts and the
+    # actual renderer can still affect pixels; noise=false does not guarantee
+    # identical canvases across personas or a particular detector classification.
     args.append("--fingerprint-noise=false")
     # A Windows persona's font metrics must match real Windows (needs Windows fonts
     # present on the host); harmless elsewhere, so gate it to the windows persona.
@@ -110,8 +95,8 @@ def get_default_stealth_args(seed=None, platform="windows", screen=None):
     # screen (e.g. 2560x1080) mismatches the actual small browser viewport (e.g.
     # 945x939) -- browserscan flags "screen dimensions don't match viewport" as a
     # virtual machine. Pin the spoofed screen to a window we also size, so
-    # screen == window == viewport in every environment (headless/container too),
-    # since the --window-size flag applies at launch without a window manager.
+    # --window-size requests the outer window; the inner viewport excludes Chrome's
+    # frame/UI and must be measured rather than assumed equal to screen dimensions.
     if screen:
         sw, sh = int(screen[0]), int(screen[1])
         args.append("--window-size=%d,%d" % (sw, sh))

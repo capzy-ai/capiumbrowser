@@ -2,14 +2,11 @@
  * config -- default stealth arguments and binary discovery.
  *
  * The capium binary is driven through its `capium` bash wrapper (executablePath), which
- * adds the GL/Metal backend, geoip, font, bluetooth/share and storage-quota flags per platform.
+ * supports explicit backend selection and platform flags; geoip remains opt-in.
  * This module only builds the *fingerprint-level* Chrome flags and locates that wrapper.
  *
- * Design note (why no stealth plugin): capium's own source patches make a vanilla driver
- * stealthy --
- *   001 (disable Runtime.enable console-reporting)  -> FingerprintJS developer_tools = false
- *   009 (webdriver)                                 -> navigator.webdriver = false
- * so we launch with plain Playwright / Puppeteer and let the binary do the CDP hardening.
+ * The binary handles CDP isolation and console masking, plus the webdriver surface.
+ * We launch with plain drivers; detector outcomes still require native host tests.
  */
 'use strict';
 
@@ -20,29 +17,23 @@ const path = require('path');
 // Playwright/Puppeteer default args to SUPPRESS (ignoreDefaultArgs): these leak automation
 // or force a software render.
 //   --enable-automation         : exposes navigator.webdriver=true + an automation banner.
-//   --enable-unsafe-swiftshader : the driver adds this so headless WebGL "works", but it ENABLES
-//                                 the (for us, broken-ICD) bundled SwiftShader path -> getContext
-//                                 ('webgl')=null headless / a software-raster tell. Stripping it
-//                                 forces Chromium onto the real GPU (GPU host) or system Mesa.
+//   --enable-unsafe-swiftshader : permits a software fallback. Keep that choice
+//                                 explicit instead of inheriting a driver's default.
+//                                 The historical 153 package lacked its ICD manifest;
+//                                 the 155 packager includes it. Validate drawing in
+//                                 the deployed environment for either backend.
 const IGNORE_DEFAULT_ARGS = ['--enable-automation', '--enable-unsafe-swiftshader'];
 
-// Headless default screen/viewport. Headless has no real display, so the per-seed device-pool
-// screen (e.g. 2560x1440) has no window manager to size a matching window against -- the
-// framebuffer would stay at Chromium's small headless default and screen != viewport (a
-// browserscan VM tell). Instead model the single MOST COMMON real setup: a maximized Chrome
-// window on a 1080p Windows monitor -- screen 1920x1080, viewport 1920x947 (1040 avail height
-// minus ~93px of tab/omnibox/bookmark chrome). Dominant real-world viewport, so a headless
-// instance blends in, and screen > viewport stays coherent. Applied only in headless and only
-// when the caller pins no screen (an explicit --fingerprint-screen-* / --window-size opts out).
+// The 155 engine selects a seeded screen within these default bounds. Start
+// headless windows small enough to fit its modes without replacing the screen.
+// Explicit screen/window flags take
+// precedence. HEADLESS_SCREEN remains the upper bound for existing consumers.
 const HEADLESS_SCREEN = [1920, 1080];
-const HEADLESS_VIEWPORT = [1920, 947];
+const HEADLESS_VIEWPORT = [800, 600];
 
 function getHeadlessDefaultArgs() {
-  const [sw, sh] = HEADLESS_SCREEN;
   const [vw, vh] = HEADLESS_VIEWPORT;
   return [
-    `--fingerprint-screen-width=${sw}`,
-    `--fingerprint-screen-height=${sh}`,
     `--window-size=${vw},${vh}`,
   ];
 }
@@ -58,12 +49,10 @@ function hasScreenOverride(extra) {
  *
  * seed:     int identity seed (a stable, coherent device per seed). Random if null.
  * platform: "windows" | "macos" | "linux" -- the spoofed OS persona.
- * screen:   DEFAULT null -> use the seed's COHERENT per-seed device screen from the binary's
- *           device pool (GPU-matched resolution + realistic dpr); fitWindow then sizes the window
- *           to it so viewport ~= screen. Passing an explicit [w,h] FORCES that resolution on every
- *           seed (all instances share one screen AND can pair e.g. an RTX 5080 with 1440x900) --
- *           only for a fixed-kiosk scenario. (Previously defaulted to [1440,900], a cross-instance
- *           correlation + GPU-incoherence tell -- now matches the python SDK's screen=None.)
+ * screen:   null uses the binary's seeded screen and DPR. Development 155 defaults
+ *           vary within 1920x1080. Headless starts with an 800x600 window; its screen
+ *           remains independent of the viewport. An explicit [w,h] overrides the screen
+ *           and startup window, including sizes above the default cap.
  */
 function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null) {
   const args = [];
@@ -91,17 +80,15 @@ function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null)
       'primaryPointerType=4,availablePointerTypes=4',
     '--no-first-run',
     '--no-default-browser-check',
-    // NOTE: capium "CDP stealth" (isolated-world eval + console-API masking that make a vanilla
-    // driver behave like patchright vs DataDome/rebrowser) is ON BY DEFAULT in the binary -- no
-    // flag needed. To opt out (e.g. a solver needing page.evaluate to read the page's own
-    // main-world window globals, which the isolated world can't see), pass
-    // extra: ['--capium-disable-cdp-stealth'].
+    // Engine 155 honors the requested execution world by default. Its console
+    // event policy is independent of page evaluation. Engine 153 retains the
+    // older default isolation behavior; --capium-isolate-cdp-eval explicitly
+    // requests that legacy mode on 155. See docs/SDK-GPU-AUDIT.md for measured
+    // page-global, object-handle and binding compatibility.
   );
-  // Patch 001 makes developer_tools always false, which unmasks FingerprintJS's
-  // tampering ML: per-seed canvas/audio NOISE would then read as tampering, so
-  // default it OFF (measured clean: tampering=false, ml~0.05, anti_detect=false).
-  // Trade-off: personas on the same host share its real canvas (no per-seed canvas
-  // uniqueness) -- pass --fingerprint-noise=true to restore it (accepts tampering).
+  // Keep injected canvas/audio/rectangle noise opt-in. Device fonts and the
+  // actual renderer can still affect pixels; noise=false does not guarantee
+  // identical canvases across personas or a particular detector classification.
   args.push('--fingerprint-noise=false');
   // A Windows persona's font metrics must match real Windows (needs Windows fonts
   // present on the host); harmless elsewhere, so gate it to the windows persona.
@@ -110,8 +97,8 @@ function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null)
   // screen (e.g. 2560x1080) mismatches the actual small browser viewport (e.g.
   // 945x939) -- browserscan flags "screen dimensions don't match viewport" as a
   // virtual machine. Pin the spoofed screen to a window we also size, so
-  // screen == window == viewport in every environment (headless/container too),
-  // since the --window-size flag applies at launch without a window manager.
+  // --window-size requests the outer window; the inner viewport excludes Chrome's
+  // frame/UI and must be measured rather than assumed equal to screen dimensions.
   if (screen) {
     const sw = Math.trunc(Number(screen[0]));
     const sh = Math.trunc(Number(screen[1]));

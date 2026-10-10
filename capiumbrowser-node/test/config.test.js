@@ -74,17 +74,19 @@ test('third-party cookies allowed', () => {
   assert.ok(args.includes('--fingerprint-allow-3p-cookies'));
 });
 
-test('headless default screen/viewport (maximized 1080p Windows model)', () => {
+test('headless startup bounds keep the seeded screen', () => {
   const a = config.getHeadlessDefaultArgs();
-  assert.ok(a.includes('--fingerprint-screen-width=1920'));
-  assert.ok(a.includes('--fingerprint-screen-height=1080'));
-  assert.ok(a.includes('--window-size=1920,947'));
+  assert.ok(!has(a, '--fingerprint-screen-width'));
+  assert.ok(!has(a, '--fingerprint-screen-height'));
+  assert.ok(a.includes('--window-size=800,600'));
 });
 
 test('buildArgs adds the headless default only in headless', () => {
   const { buildArgs } = require('../lib/launch-common');
   const headless = buildArgs({ seed: 1, platform: 'windows', stealthArgs: true, headless: true });
-  assert.ok(headless.includes('--window-size=1920,947'));
+  assert.ok(headless.includes('--window-size=800,600'));
+  assert.ok(!has(headless, '--fingerprint-screen-width'));
+  assert.ok(!has(headless, '--fingerprint-screen-height'));
   const headed = buildArgs({ seed: 1, platform: 'windows', stealthArgs: true, headless: false });
   assert.ok(!has(headed, '--window-size'));
 });
@@ -92,9 +94,12 @@ test('buildArgs adds the headless default only in headless', () => {
 test('buildArgs headless default yields to an explicit screen', () => {
   const { buildArgs } = require('../lib/launch-common');
   const a = buildArgs({ seed: 1, platform: 'windows', stealthArgs: true,
-    extra: ['--window-size=800,600'], headless: true });
-  assert.ok(a.includes('--window-size=800,600'));
-  assert.ok(!a.includes('--window-size=1920,947'));
+    extra: ['--window-size=2560,1440', '--fingerprint-screen-width=2560',
+      '--fingerprint-screen-height=1440'], headless: true });
+  assert.equal(a.filter(x => x === '--window-size=2560,1440').length, 1);
+  assert.ok(!a.includes('--window-size=800,600'));
+  assert.ok(a.includes('--fingerprint-screen-width=2560'));
+  assert.ok(a.includes('--fingerprint-screen-height=1440'));
 });
 
 test('newSeed is a positive 31-bit int', () => {
