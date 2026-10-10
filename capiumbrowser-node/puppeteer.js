@@ -76,24 +76,27 @@ async function resolveBinary(binary, licenseKey) {
 
 async function prepare(opts) {
   const {
-    seed = null, platform = 'windows', proxy = null, geoip = null, args = null,
+    seed = null, platform = 'windows', mobileDevice = null, browserBrand = null, proxy = null, geoip = null, args = null,
     stealthArgs = true, timezone = null, locale = null, extensionPaths = null,
     binary = null, licenseKey = null, licenseServer = null,
     licenseThroughProxy = false, licensePreflight = true, headless = false,
   } = opts;
+  require('./lib/desktop').validateLaunch(browserBrand, platform, binary, args, stealthArgs);
+  require('./lib/mobile').validateLaunch(platform, binary, args, stealthArgs, mobileDevice);
   if (licensePreflight) license.preflight(licenseKey, licenseServer);
   const { key } = license.effective(licenseKey, licenseServer);
   const binPath = await resolveBinary(binary, key);
   const finalSeed = seed === null || seed === undefined ? config.newSeed() : seed;
   const { launchOptions, args: proxyArgs } = proxyAndGeoArgs(proxy, geoip);
   const launchArgs = proxyArgs.concat(buildArgs({
-    seed: finalSeed, platform, stealthArgs, timezone, locale, extensionPaths, extra: args,
+    seed: finalSeed, platform, mobileDevice, browserBrand, stealthArgs, timezone, locale, extensionPaths, extra: args,
     headless,
   }));
   if (licenseThroughProxy) launchArgs.push('--license-through-proxy');
   const env = license.childEnv(licenseKey, licenseServer);
   const statusPath = newStatusFile(env);
-  return { binPath, finalSeed, launchOptions, launchArgs, env, statusPath };
+  return { binPath, finalSeed, launchOptions, launchArgs, env, statusPath,
+    browserBrand, mobileSeed: ['android', 'ios'].includes(platform) && stealthArgs ? finalSeed : null, mobileDevice, mobilePlatform: platform };
 }
 
 /**
@@ -131,12 +134,12 @@ async function throwTranslated(e, statusPath) {
  */
 async function buildLaunchOptions(opts = {}) {
   const {
-    seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
+    seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
     headless = false, ignoreDefaultArgs, ...rest
   } = opts;
   const prep = await prepare({
-    seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
+    seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight, headless,
   });
   const proxyOption = prep.launchOptions.proxy || null;
@@ -150,7 +153,8 @@ async function buildLaunchOptions(opts = {}) {
     headless,
     args: launchArgs,
     env: prep.env,
-    defaultViewport: 'defaultViewport' in rest ? rest.defaultViewport : null,
+    defaultViewport: 'defaultViewport' in rest ? rest.defaultViewport :
+      (prep.mobileSeed !== null ? require('./lib/mobile').puppeteerViewport(prep.mobileSeed, prep.mobileDevice, prep.mobilePlatform) : null),
     ignoreDefaultArgs: ignoreDefaultArgs === undefined ? config.IGNORE_DEFAULT_ARGS : ignoreDefaultArgs,
     ...rest,
   };
@@ -163,12 +167,12 @@ async function buildLaunchOptions(opts = {}) {
  */
 async function launch(opts = {}) {
   const {
-    seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
+    seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
     headless = false, ignoreDefaultArgs, ...rest
   } = opts;
   const prep = await prepare({
-    seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
+    seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight, headless,
   });
   const puppeteer = requireDriver();
@@ -191,7 +195,8 @@ async function launch(opts = {}) {
       headless,
       args: launchArgs,
       env: prep.env,
-      defaultViewport: 'defaultViewport' in rest ? rest.defaultViewport : null,
+      defaultViewport: 'defaultViewport' in rest ? rest.defaultViewport :
+        (prep.mobileSeed !== null ? require('./lib/mobile').puppeteerViewport(prep.mobileSeed, prep.mobileDevice, prep.mobilePlatform) : null),
       ignoreDefaultArgs: ida,
       ...rest,
       // A rejected native gate never creates a page. Obtain the transport first,
@@ -215,6 +220,23 @@ async function launch(opts = {}) {
   clearStatusFile(prep.statusPath);
   wireProxyAuth(browser, proxyOption);
   browser._capiumSeed = prep.finalSeed;
+  browser._capiumMobile = prep.mobileSeed !== null;
+  if (browser._capiumMobile) {
+    try {
+      const page = await browser.newPage();
+      try {
+        const mobile = require('./lib/mobile');
+        const expected = mobile.mobileProfile(prep.finalSeed, prep.mobileDevice, prep.mobilePlatform);
+        await page.setRequestInterception(true);
+        page.on('request', request => request.respond({ status: 200, contentType: 'text/html', body: '<!doctype html>' }));
+        await page.goto('https://capium-mobile-preview.invalid/', { waitUntil: 'domcontentloaded' });
+        const supported = await page.evaluate(mobile.engineProbe, expected);
+        if (!supported) throw new Error('This binary does not support the requested mobile profile/device; use Capium 1.2.1 revision 2 or later');
+      } finally { await page.close(); }
+    } catch (e) { await browser.close(); throw e; }
+  }
+  try { await require('./lib/desktop').requirePuppeteerEngine(browser, prep.browserBrand); }
+  catch (e) { await browser.close(); throw e; }
   return browser;
 }
 
@@ -265,7 +287,7 @@ async function launchContext(opts = {}) {
   const pages = await browser.pages();
   const page = pages[0] || (await browser.newPage());
   if (humanize) human.humanize(page, humanPreset);
-  if (!headless) await fitWindow(browser, page);
+  if (!headless && !browser._capiumMobile) await fitWindow(browser, page);
   if (url) await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   return { browser, page };
 }

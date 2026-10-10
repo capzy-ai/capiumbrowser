@@ -48,13 +48,35 @@ function hasScreenOverride(extra) {
  * Return the default per-launch fingerprint flags.
  *
  * seed:     int identity seed (a stable, coherent device per seed). Random if null.
- * platform: "windows" | "macos" | "linux" -- the spoofed OS persona.
+ * platform: "windows" | "macos" | "linux" | "android" | "ios" -- the OS persona.
+ * mobileDevice: optional Android catalog ID; omitted keeps the seed modulo 5 mapping.
  * screen:   null uses the binary's seeded screen and DPR. Development 155 defaults
  *           vary within 1920x1080. Headless starts with an 800x600 window; its screen
  *           remains independent of the viewport. An explicit [w,h] overrides the screen
  *           and startup window, including sizes above the default cap.
  */
-function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null) {
+function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null, mobileDevice = null, browserBrand = null) {
+  const desktopArgs = require('./desktop').brandArgs(browserBrand, platform);
+  if (mobileDevice !== null && mobileDevice !== undefined && !['android', 'ios'].includes(platform)) {
+    throw new Error("mobileDevice requires platform: 'android' or 'ios'");
+  }
+  if (['android', 'ios'].includes(platform)) {
+    const p = require('./mobile').mobileProfile(seed, mobileDevice, platform);
+    const [sw, sh] = screen ? screen.map(v => Math.trunc(Number(v))) : [p.width, p.height];
+    return [
+      `--fingerprint=${seed}`, `--fingerprint-platform=${platform}`,
+      ...(mobileDevice !== null && mobileDevice !== undefined ? [`--fingerprint-mobile-device=${mobileDevice}`] : []),
+      '--fingerprint-allow-3p-cookies', '--disable-features=TrackingProtection3pcd',
+      '--blink-settings=primaryHoverType=0,availableHoverTypes=0,' +
+        'primaryPointerType=2,availablePointerTypes=2,maxTouchPoints=5,' +
+        'viewportEnabled=true,viewportMetaEnabled=true,shrinksViewportContentToFit=true',
+      '--touch-events=enabled', '--enable-viewport',
+      '--no-first-run', '--no-default-browser-check', '--fingerprint-noise=false',
+      `--window-size=${sw},${sh}`,
+      ...(platform === 'ios' ? [`--user-agent=${p.user_agent}`, '--capium-preserve-user-agent'] : []),
+      ...(screen ? [`--fingerprint-screen-width=${sw}`, `--fingerprint-screen-height=${sh}`] : []),
+    ];
+  }
   const args = [];
   if (seed !== null && seed !== undefined) {
     const s = Math.trunc(Number(seed));
@@ -106,7 +128,7 @@ function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null)
     args.push(`--fingerprint-screen-width=${sw}`);
     args.push(`--fingerprint-screen-height=${sh}`);
   }
-  return args;
+  return args.concat(desktopArgs);
 }
 
 /** A fresh random identity seed. */

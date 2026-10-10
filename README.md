@@ -85,6 +85,7 @@ await browser.close();
 - [Install](#install) · [Why Capium](#why-capium) · [Licensing & tiers](#licensing)
 - [What a persona reads](#what-a-persona-reads) · [Comparison](#comparison) · [How it works](#how-it-works)
 - [API](#api) · [Parameters](#parameters) · [Personas & seeds](#personas--seeds) · [Fingerprint switches](#fingerprint-switches)
+- [Browser and mobile profiles](#browser-and-mobile-profiles)
 - [Human behavior](#human-behavior) · [Proxies & geo](#proxies--geo) · [Fonts](#fonts)
 - [Framework integrations](#framework-integrations) · [Deployment](#deployment) · [Platforms](#platforms)
 - [CLI](#cli--environment) · [Troubleshooting](#troubleshooting) · [FAQ](#faq) · [Security](#security) · [License](#license)
@@ -160,12 +161,12 @@ header you can verify against the bytes.
 
 | `<tag>` | `<version>` | `<revision>` |
 | --- | --- | --- |
-| `windows-x64` | `155.0.8059.39` | `1` |
-| `macos-arm64` | `155.0.8059.39` | `1` |
-| `linux-x64` | `155.0.8059.39` | `1` |
+| `windows-x64` | `155.0.8059.39` | `2` |
+| `macos-arm64` | `155.0.8059.39` | `2` |
+| `linux-x64` | `155.0.8059.39` | `2` |
 | `linux-arm64` | *(coming soon)* | |
 
-> `<version>` is the compiled and reported browser version. All three supported platforms use Chromium `155.0.8059.39`, packaging revision `1`, in `chromium-v155.0.8059.39.1/`. Linux arm64 is not yet published.
+> `<version>` is the compiled and reported browser version. All three supported platforms use Chromium `155.0.8059.39`, packaging revision `2`, in `chromium-v155.0.8059.39.2/`. Linux arm64 is not yet published.
 
 The current stable version per platform is also in each [release's checksums](https://github.com/capzy-ai/capiumbrowser/releases).
 
@@ -176,7 +177,7 @@ The R2 folder is `chromium-v<version>.<revision>/` — the packaging **revision*
 ```bash
 KEY="cap_your_key_here"
 VERSION="155.0.8059.39"                  # build/artifact version -- see the table above
-REVISION="1"                             # packaging revision (dotted suffix, starts at 1)
+REVISION="2"                             # packaging revision (dotted suffix, starts at 1)
 TAG="windows-x64"                        # windows-x64 | macos-arm64 | linux-x64 | linux-arm64
 REQ_PATH="/download/distro/chromium-v${VERSION}.${REVISION}/capiumbrowser-${TAG}.tar.gz"
 
@@ -187,7 +188,7 @@ curl -fSL "https://license.capzy.ai${REQ_PATH}" \
   -H "X-Capzy-License: ${KEY}" \
   -H "X-Capzy-Timestamp: ${TS}" \
   -H "X-Capzy-Signature: ${SIG}" \
-  -H "User-Agent: capiumbrowser/1.2.0" \
+  -H "User-Agent: capiumbrowser/1.2.1" \
   -o "capiumbrowser-${TAG}.tar.gz"
 
 # verify (optional): compare against the X-Capzy-SHA256 header / the release checksums
@@ -203,7 +204,7 @@ const { pipeline } = require('stream/promises');
 const { Readable } = require('stream');
 
 const KEY = process.env.CAPIUM_LICENSE_KEY;
-const VERSION = '155.0.8059.39', REVISION = '1', TAG = 'windows-x64';
+const VERSION = '155.0.8059.39', REVISION = '2', TAG = 'windows-x64';
 const path = `/download/distro/chromium-v${VERSION}.${REVISION}/capiumbrowser-${TAG}.tar.gz`;
 
 const ts = String(Math.floor(Date.now() / 1000));
@@ -214,7 +215,7 @@ const res = await fetch(`https://license.capzy.ai${path}`, {
     'X-Capzy-License': KEY,
     'X-Capzy-Timestamp': ts,
     'X-Capzy-Signature': sig,
-    'User-Agent': 'capiumbrowser/1.2.0',
+    'User-Agent': 'capiumbrowser/1.2.1',
   },
 });
 await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`capiumbrowser-${TAG}.tar.gz`));
@@ -226,14 +227,14 @@ await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`capiumbrowser-$
 import hashlib, hmac, time, urllib.request
 
 KEY = "cap_your_key_here"
-VERSION, REVISION, TAG = "155.0.8059.39", "1", "windows-x64"
+VERSION, REVISION, TAG = "155.0.8059.39", "2", "windows-x64"
 path = f"/download/distro/chromium-v{VERSION}.{REVISION}/capiumbrowser-{TAG}.tar.gz"
 
 ts = str(int(time.time()))
 sig = hmac.new(KEY.encode(), f"{ts}.{path}".encode(), hashlib.sha256).hexdigest()
 req = urllib.request.Request("https://license.capzy.ai" + path, headers={
     "X-Capzy-License": KEY, "X-Capzy-Timestamp": ts, "X-Capzy-Signature": sig,
-    "User-Agent": "capiumbrowser/1.2.0",
+    "User-Agent": "capiumbrowser/1.2.1",
 })
 with urllib.request.urlopen(req) as r, open(f"capiumbrowser-{TAG}.tar.gz", "wb") as f:
     f.write(r.read())
@@ -516,7 +517,9 @@ and `launch_persistent_context` forward everything to `launch`. The **Node SDK**
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `seed` | `int` \| `None` \| `"off"` | `None` | Persona seed → a complete coherent device. `None` = fresh random seed each launch. The range selects the OS family (see [Personas & seeds](#personas--seeds)). `"off"`/`"false"`/`"none"` = **passthrough** (host's real values; debugging). |
-| `platform` | `str` | `"windows"` | Spoofed OS: `"windows"` \| `"macos"` \| `"linux"`. Sets `--fingerprint-platform` and picks the seed range if you didn't. |
+| `platform` | `str` | `"windows"` | OS profile: `"windows"` \| `"macos"` \| `"linux"` \| `"android"` \| `"ios"`. Mobile profiles are opt-in. |
+| `browser_brand` | `str` | `"chrome"` | Desktop profile: `chrome`, `edge`, `opera`, `vivaldi`. |
+| `mobile_device` | `str` | seed/default | Phone catalog ID; requires `android` or `ios`. |
 | `headless` | `bool` | `False` | Headed is recommended (reads cleaner). On a server, run headed under Xvfb. |
 | `stealth_args` | `bool` | `True` | Apply the default coherent fingerprint flags. Set `False` to build the whole command line yourself via `args`. |
 | `args` | `list[str]` \| `None` | `None` | Extra raw Chrome flags appended verbatim (see [Fingerprint switches](#fingerprint-switches)). |
@@ -616,6 +619,53 @@ Full runnable version (personas, persistent profiles, a fleet, proxy+geo, full c
 [`examples/profiles.py`](examples/profiles.py) · Node version: [`examples/profiles.js`](examples/profiles.js).
 
 ---
+
+## Browser and mobile profiles
+
+CapiumBrowser 1.2.1 supports desktop Chrome, Edge, Opera and Vivaldi identity
+profiles, plus opt-in Android and iPhone profiles on Windows x64, macOS arm64
+and Linux x64. Chrome remains the default.
+
+| Profile | Python | Node.js |
+| --- | --- | --- |
+| Desktop browser | `browser_brand="edge"` (also `chrome`, `opera`, `vivaldi`) | `browserBrand: 'edge'` |
+| Android phone | `platform="android", mobile_device="pixel-9"` | `platform: 'android', mobileDevice: 'pixel-9'` |
+| iPhone 16 | `platform="ios", mobile_device="iphone-16"` | `platform: 'ios', mobileDevice: 'iphone-16'` |
+
+Android includes Pixel 7/8/9 families and Samsung Galaxy A55. Omit the Android
+device to retain the original seed selection; iOS defaults to iPhone 16. Mobile
+profiles set the mobile layout and identity while leaving desktop defaults intact.
+These are experimental desktop emulation profiles: they do not install Android
+or iOS, reproduce WebKit, or certify physical-phone fingerprints. Android Chrome
+and Chrome iOS are the supported mobile browser profiles; arbitrary app/WebView
+UAs are outside these presets.
+
+Desktop profiles use verified browser/Chromium version pairs: Edge 155/155,
+Opera 137/153 and Vivaldi 8.2/152. Vivaldi follows its usual Chrome branding.
+Capium's engine remains Chromium 155; vendor-specific features are not emulated.
+A version catalog is not an older browser engine. Native compatibility checks
+reject binaries that do not implement the selected profile.
+
+```python
+from capiumbrowser import launch_context
+
+browser, context, page = launch_context(
+    seed=200123, platform="ios", mobile_device="iphone-16")
+# Android: platform="android", mobile_device="pixel-9"
+# Desktop Edge: platform="windows", browser_brand="edge"
+browser.close()
+```
+
+```js
+const { launchContext } = require('capiumbrowser');
+
+const { browser, page } = await launchContext({
+  seed: 200123, platform: 'ios', mobileDevice: 'iphone-16',
+});
+// Android: platform: 'android', mobileDevice: 'pixel-9'
+// Desktop Edge: platform: 'windows', browserBrand: 'edge'
+await browser.close();
+```
 
 ## Fingerprint switches
 
@@ -888,7 +938,7 @@ launches **headed**, which reads cleaner than headless.
 | Linux arm64 | `linux-arm64` | Declared in the manifest; not yet published or covered by the three-host audit |
 
 The SDK auto-detects your host and downloads the matching tag; macOS Intel and Windows ARM are **not**
-published and raise a clear error. The **1.2.0** release uses **Chromium 155.0.8059.39, revision 1** on Windows x64,
+published and raise a clear error. The **1.2.1** release uses **Chromium 155.0.8059.39, revision 2** on Windows x64,
 macOS arm64 and Linux x64. Browser downloads are available with a valid license. Linux arm64 remains unpublished.
 
 ---

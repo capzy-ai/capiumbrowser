@@ -40,13 +40,13 @@ function proxyAndGeoArgs(spec, geoipOn) {
 }
 
 function buildArgs({ seed, platform, stealthArgs, timezone, locale, extensionPaths, extra,
-  headless = false }) {
+  headless = false, mobileDevice = null, browserBrand = null }) {
   let args = [];
   if (stealthArgs) {
-    args = args.concat(config.getDefaultStealthArgs(seed, platform));
+    args = args.concat(config.getDefaultStealthArgs(seed, platform, null, mobileDevice, browserBrand));
     // Keep the engine's seeded screen. Use initial window bounds only when
     // the caller has not provided screen/window flags.
-    if (headless && !config.hasScreenOverride(extra)) {
+    if (headless && !['android', 'ios'].includes(platform) && !config.hasScreenOverride(extra)) {
       args = args.concat(config.getHeadlessDefaultArgs());
     }
   }

@@ -117,13 +117,13 @@ def _has_screen_override(extra):
 
 
 def _build_args(seed, platform, stealth_args, timezone, locale, extension_paths, extra,
-                headless=False):
+                headless=False, mobile_device=None, browser_brand=None):
     args = []
     if stealth_args:
-        args += config.get_default_stealth_args(seed, platform)
+        args += config.get_default_stealth_args(seed, platform, mobile_device=mobile_device, browser_brand=browser_brand)
         # Keep the engine's seeded screen. Use initial window bounds only when
         # the caller has not provided screen/window flags.
-        if headless and not _has_screen_override(extra):
+        if headless and platform not in ("android", "ios") and not _has_screen_override(extra):
             args += config.get_headless_default_args()
     if timezone:
         args.append("--timezone=%s" % timezone)          # capium in-binary tz spoof
@@ -209,10 +209,13 @@ def _wrap_close(obj, pw):
     return obj
 
 
-def _apply_viewport_defaults(browser, asynchronous=False):
+def _apply_viewport_defaults(browser, asynchronous=False, mobile_seed=None, mobile_device=None, mobile_platform="android"):
     """Match the other launch APIs: use the window unless the caller chooses a viewport."""
     def decorate(original):
         def options(kwargs):
+            if mobile_seed is not None:
+                from .mobile import context_options
+                return context_options(mobile_seed, kwargs, mobile_device, mobile_platform)
             if 'viewport' not in kwargs and 'no_viewport' not in kwargs:
                 kwargs = dict(kwargs, no_viewport=True)
             return kwargs
@@ -234,13 +237,29 @@ def _apply_viewport_defaults(browser, asynchronous=False):
     return browser
 
 
+def _require_mobile_engine(context, mobile_device=None, seed=0, platform="android"):
+    """Refuse incompatible binaries before a mobile case can visit a site."""
+    page = context.new_page()
+    try:
+        from .mobile import mobile_profile, engine_probe
+        expected = mobile_profile(seed, mobile_device, platform)
+        page.route("**/*", lambda route: route.fulfill(status=200, content_type="text/html", body="<!doctype html>"))
+        page.goto("https://capium-mobile-preview.invalid/", wait_until="domcontentloaded")
+        supported = page.evaluate(engine_probe(platform), expected)
+        if not supported:
+            raise ValueError("This binary does not support the requested mobile profile/device; use Capium 1.2.1 revision 2 or later")
+    finally:
+        page.close()
+
+
 def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None, args=None,
            stealth_args=True, timezone=None, locale=None, extension_paths=None, binary=None,
            license_key=None, license_server=None, license_through_proxy=False,
-           license_preflight=True, driver=None, **kwargs):
+           license_preflight=True, driver=None, mobile_device=None, browser_brand=None, **kwargs):
     """Launch a Capium Browser (non-persistent; Playwright manages a temp profile).
 
     seed/platform : identity. stealth_args=False drops the default fingerprint flags.
+    mobile_device : Android/iPhone catalog ID; requires the matching native release.
     proxy         : "dataimpulse" | "http://user:pass@host:port" | "socks5://host:port" | dict.
     geoip         : geo coherence, resolved inside the binary. None (default) = OFF: no lookup
                     runs, even with a proxy (a proxy alone no longer triggers it, so proxied
@@ -263,6 +282,10 @@ def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None
     kwargs        : forwarded to Playwright's chromium.launch (e.g. slow_mo=...).
     Returns a Browser whose .close() also stops Playwright.
     """
+    from .mobile import validate_launch
+    from . import desktop
+    desktop.validate_launch(browser_brand, platform, binary, args, stealth_args)
+    validate_launch(platform, binary, args, stealth_args, mobile_device)
     if license_preflight:
         _license.preflight(license_key, license_server)
     key, _ = _license.effective(license_key, license_server)
@@ -272,7 +295,7 @@ def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None
     display = os.environ.get("DISPLAY")
     proxy_kwargs, proxy_args = _proxy_and_geo_args(proxy, binpath, geoip, display)
     launch_args = proxy_args + _build_args(
-        seed, platform, stealth_args, timezone, locale, extension_paths, args, headless)
+        seed, platform, stealth_args, timezone, locale, extension_paths, args, headless, mobile_device, browser_brand)
     if license_through_proxy:
         launch_args.append("--license-through-proxy")
     env = _license.child_env(license_key, license_server)
@@ -304,7 +327,30 @@ def launch(seed=None, platform="windows", headless=False, proxy=None, geoip=None
         raise
     _clear_status_file(status_path)
     browser._capium_seed = seed
-    return _wrap_close(_apply_viewport_defaults(browser), pw)
+    browser._capium_mobile = platform in ("android", "ios") and stealth_args
+    browser = _wrap_close(_apply_viewport_defaults(
+        browser, mobile_seed=seed if browser._capium_mobile else None, mobile_device=mobile_device, mobile_platform=platform), pw)
+    if browser._capium_mobile:
+        try:
+            context = browser.new_context()
+            try:
+                _require_mobile_engine(context, mobile_device, seed, platform)
+            finally:
+                context.close()
+        except Exception:
+            browser.close()
+            raise
+    if desktop.normalize_brand(browser_brand) != "chrome":
+        try:
+            context = browser.new_context()
+            try:
+                desktop.require_engine(context, browser_brand)
+            finally:
+                context.close()
+        except Exception:
+            browser.close()
+            raise
+    return browser
 
 
 def launch_persistent_context(user_data_dir, seed=None, platform="windows", headless=False,
@@ -312,11 +358,15 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
                               timezone=None, locale=None, extension_paths=None, binary=None,
                               license_key=None, license_server=None,
                               license_through_proxy=False,
-                              license_preflight=True, driver=None, **kwargs):
+                              license_preflight=True, driver=None, mobile_device=None, browser_brand=None, **kwargs):
     """Launch a persistent context (cookies/localStorage/state persist in user_data_dir).
 
     Same options as launch(); returns a BrowserContext whose .close() also stops Playwright.
     """
+    from .mobile import context_options, validate_launch
+    from . import desktop
+    desktop.validate_launch(browser_brand, platform, binary, args, stealth_args)
+    validate_launch(platform, binary, args, stealth_args, mobile_device)
     if license_preflight:
         _license.preflight(license_key, license_server)
     key, _ = _license.effective(license_key, license_server)
@@ -326,14 +376,16 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
     display = os.environ.get("DISPLAY")
     proxy_kwargs, proxy_args = _proxy_and_geo_args(proxy, binpath, geoip, display)
     launch_args = proxy_args + _build_args(
-        seed, platform, stealth_args, timezone, locale, extension_paths, args, headless)
+        seed, platform, stealth_args, timezone, locale, extension_paths, args, headless, mobile_device, browser_brand)
     if license_through_proxy:
         launch_args.append("--license-through-proxy")
     env = _license.child_env(license_key, license_server)
     status_path = _new_status_file(env)
     # Default to the page filling the window (see launch_context) unless the caller
     # pinned a viewport themselves.
-    if "viewport" not in kwargs and "no_viewport" not in kwargs:
+    if platform in ("android", "ios") and stealth_args:
+        kwargs = context_options(seed, kwargs, mobile_device, platform)
+    elif "viewport" not in kwargs and "no_viewport" not in kwargs:
         kwargs["no_viewport"] = True
     # Strip Playwright's automation + forced-software-WebGL defaults;
     # the caller can override by passing ignore_default_args explicitly.
@@ -363,6 +415,22 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
         raise
     _clear_status_file(status_path)
     ctx._capium_seed = seed
+    if desktop.normalize_brand(browser_brand) != "chrome":
+        ctx = _wrap_close(ctx, pw)
+        try:
+            desktop.require_engine(ctx, browser_brand)
+        except Exception:
+            ctx.close()
+            raise
+        return ctx
+    if platform in ("android", "ios") and stealth_args:
+        ctx = _wrap_close(ctx, pw)
+        try:
+            _require_mobile_engine(ctx, mobile_device, seed, platform)
+        except Exception:
+            ctx.close()
+            raise
+        return ctx
     # Headed persistent launches fit the window to the selected screen. Headless
     # keeps its startup bounds (800x600 by default) independent of the seeded screen;
     # callers can choose larger window bounds explicitly.
@@ -383,12 +451,13 @@ def launch_context(seed=None, platform="windows", headless=False, url=None,
     # no_viewport: let the page fill the real window (fit_window sizes the window to
     # the persona's screen). A fixed 1280x720 emulated viewport would leave the page
     # smaller than the window AND mismatch window.screen — an incoherent fingerprint.
-    context = browser.contexts[0] if browser.contexts else browser.new_context(no_viewport=True)
+    context = browser.contexts[0] if browser.contexts else browser.new_context(
+        **({} if getattr(browser, "_capium_mobile", False) else {"no_viewport": True}))
     if humanize:
         from . import human as _human
         _human.humanize(context, preset=human_preset)
     page = context.pages[0] if context.pages else context.new_page()
-    if not headless:
+    if not headless and not getattr(browser, "_capium_mobile", False):
         fit_window(browser, context, page)   # modest window <= spoofed screen
     if url:
         page.goto(url, wait_until="domcontentloaded", timeout=60000)

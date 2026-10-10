@@ -9,7 +9,11 @@
  *     const browser = (await launch({ seed: 42 })) as unknown as Browser;
  */
 
-export type Platform = 'windows' | 'macos' | 'linux';
+/** Mobile profiles emulate identity/layout on the supported desktop hosts. */
+export type Platform = 'windows' | 'macos' | 'linux' | 'android' | 'ios';
+export type AndroidDevice = 'pixel-7' | 'pixel-8' | 'pixel-8-pro' | 'pixel-8a' | 'pixel-9' |
+  'samsung-galaxy-a55' | 'pixel-9-pro' | 'pixel-9-pro-xl';
+export type IOSDevice = 'iphone-16';
 
 export interface ProxySpec {
   /** "scheme://host:port" (http, https, socks5). */
@@ -21,10 +25,14 @@ export interface ProxySpec {
 }
 
 export interface LaunchOptions {
+  /** Desktop identity profile; vendor features are not emulated. */
+  browserBrand?: 'chrome' | 'edge' | 'opera' | 'vivaldi' | null;
   /** Identity seed (a stable, coherent device per seed). Random if omitted. */
   seed?: number | null;
   /** The spoofed OS persona. Default "windows". */
   platform?: Platform;
+  /** Phone catalog ID. Android uses the original seed mapping; iOS defaults to iPhone 16. */
+  mobileDevice?: AndroidDevice | IOSDevice | null;
   /** Default false (a windowed browser is the coherent persona default). */
   headless?: boolean;
   /** "http://user:pass@host:port" | "socks5://host:port" | ProxySpec. */
@@ -102,7 +110,8 @@ export function status(licenseKey?: string | null, licenseServer?: string | null
 
 export namespace config {
   function getDefaultStealthArgs(seed?: number | null, platform?: Platform,
-    screen?: [number, number] | null): string[];
+    screen?: [number, number] | null, mobileDevice?: AndroidDevice | null,
+    browserBrand?: 'chrome' | 'edge' | 'opera' | 'vivaldi' | null): string[];
   function newSeed(): number;
   function findBinary(binary?: string | null): string;
 }

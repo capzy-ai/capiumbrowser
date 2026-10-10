@@ -76,24 +76,27 @@ async function resolveBinary(binary, licenseKey) {
  */
 async function prepare(opts) {
   const {
-    seed = null, platform = 'windows', proxy = null, geoip = null, args = null,
+    seed = null, platform = 'windows', mobileDevice = null, browserBrand = null, proxy = null, geoip = null, args = null,
     stealthArgs = true, timezone = null, locale = null, extensionPaths = null,
     binary = null, licenseKey = null, licenseServer = null,
     licenseThroughProxy = false, licensePreflight = true, headless = false,
   } = opts;
+  require('./lib/desktop').validateLaunch(browserBrand, platform, binary, args, stealthArgs);
+  require('./lib/mobile').validateLaunch(platform, binary, args, stealthArgs, mobileDevice);
   if (licensePreflight) license.preflight(licenseKey, licenseServer);
   const { key } = license.effective(licenseKey, licenseServer);
   const binPath = await resolveBinary(binary, key);
   const finalSeed = seed === null || seed === undefined ? config.newSeed() : seed;
   const { launchOptions, args: proxyArgs } = proxyAndGeoArgs(proxy, geoip);
   const launchArgs = proxyArgs.concat(buildArgs({
-    seed: finalSeed, platform, stealthArgs, timezone, locale, extensionPaths, extra: args,
+    seed: finalSeed, platform, mobileDevice, browserBrand, stealthArgs, timezone, locale, extensionPaths, extra: args,
     headless,
   }));
   if (licenseThroughProxy) launchArgs.push('--license-through-proxy');
   const env = license.childEnv(licenseKey, licenseServer);
   const statusPath = newStatusFile(env);
-  return { binPath, finalSeed, launchOptions, launchArgs, env, statusPath };
+  return { binPath, finalSeed, launchOptions, launchArgs, env, statusPath,
+    browserBrand, mobileSeed: ['android', 'ios'].includes(platform) && stealthArgs ? finalSeed : null, mobileDevice, mobilePlatform: platform };
 }
 
 async function throwTranslated(e, statusPath) {
@@ -117,12 +120,12 @@ async function throwTranslated(e, statusPath) {
  */
 async function buildLaunchOptions(opts = {}) {
   const {
-    seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
+    seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
     headless = false, ...rest
   } = opts;
   const prep = await prepare({
-    seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
+    seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight, headless,
   });
   return {
@@ -140,12 +143,13 @@ async function buildLaunchOptions(opts = {}) {
  * avoid; this closes the plain-launch() path too). An explicit viewport (including a
  * user-passed null) is always honored.
  */
-function applyViewportDefaults(browser) {
+function applyViewportDefaults(browser, mobileSeed = null, mobileDevice = null, mobilePlatform = 'android') {
   for (const method of ['newContext', 'newPage']) {
     const orig = browser[method];
     if (typeof orig !== 'function') continue;
     browser[method] = function (options = {}, ...more) {
-      if (!('viewport' in options)) options = { ...options, viewport: null };
+      if (mobileSeed !== null) options = require('./lib/mobile').contextOptions(mobileSeed, options, mobileDevice, mobilePlatform);
+      else if (!('viewport' in options)) options = { ...options, viewport: null };
       return orig.call(this, options, ...more);
     };
   }
@@ -171,12 +175,12 @@ function applyViewportDefaults(browser) {
  */
 async function launch(opts = {}) {
   const {
-    seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
+    seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
     headless = false, ...rest
   } = opts;
   const prep = await prepare({
-    seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
+    seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight, headless,
   });
   const pw = requireDriver();
@@ -197,7 +201,33 @@ async function launch(opts = {}) {
   }
   clearStatusFile(prep.statusPath);
   browser._capiumSeed = prep.finalSeed;
-  return applyViewportDefaults(browser);
+  browser._capiumMobile = prep.mobileSeed !== null;
+  applyViewportDefaults(browser, prep.mobileSeed, prep.mobileDevice, prep.mobilePlatform);
+  if (browser._capiumMobile) {
+    try {
+      const context = await browser.newContext();
+      try { await requireMobileEngine(context, prep.mobileDevice, prep.finalSeed, prep.mobilePlatform); } finally { await context.close(); }
+    } catch (e) { await browser.close(); throw e; }
+  }
+  if (require('./lib/desktop').normalizeBrand(prep.browserBrand) !== 'chrome') {
+    try {
+      const context = await browser.newContext();
+      try { await require('./lib/desktop').requireEngine(context, prep.browserBrand); } finally { await context.close(); }
+    } catch (e) { await browser.close(); throw e; }
+  }
+  return browser;
+}
+
+async function requireMobileEngine(context, mobileDevice = null, seed = 0, platform = 'android') {
+  const page = await context.newPage();
+  try {
+    const mobile = require('./lib/mobile');
+    const expected = mobile.mobileProfile(seed, mobileDevice, platform);
+    await page.route('**/*', route => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html>' }));
+    await page.goto('https://capium-mobile-preview.invalid/', { waitUntil: 'domcontentloaded' });
+    const supported = await page.evaluate(mobile.engineProbe, expected);
+    if (!supported) throw new Error('This binary does not support the requested mobile profile/device; use Capium 1.2.1 revision 2 or later');
+  } finally { await page.close(); }
 }
 
 /**
@@ -207,17 +237,18 @@ async function launch(opts = {}) {
  */
 async function launchPersistentContext(userDataDir, opts = {}) {
   const {
-    seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
+    seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
     headless = false, ...rest
   } = opts;
   const prep = await prepare({
-    seed, platform, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
+    seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight, headless,
   });
   // Default to the page filling the window (see launchContext) unless the caller pinned a
   // viewport themselves. viewport: null is Playwright-JS for "no fixed viewport".
-  if (!('viewport' in rest)) rest.viewport = null;
+  if (prep.mobileSeed !== null) Object.assign(rest, require('./lib/mobile').contextOptions(prep.mobileSeed, rest, prep.mobileDevice, prep.mobilePlatform));
+  else if (!('viewport' in rest)) rest.viewport = null;
   const pw = requireDriver();
   let ctx;
   try {
@@ -236,6 +267,11 @@ async function launchPersistentContext(userDataDir, opts = {}) {
   }
   clearStatusFile(prep.statusPath);
   ctx._capiumSeed = prep.finalSeed;
+  if (prep.mobileSeed !== null) {
+    try { await requireMobileEngine(ctx, prep.mobileDevice, prep.finalSeed, prep.mobilePlatform); } catch (e) { await ctx.close(); throw e; }
+  }
+  try { await require('./lib/desktop').requireEngine(ctx, prep.browserBrand); }
+  catch (e) { await ctx.close(); throw e; }
   return ctx;
 }
 
@@ -283,10 +319,10 @@ async function launchContext(opts = {}) {
   // viewport: null -- let the page fill the real window (fitWindow sizes the window to the
   // persona's screen). A fixed 1280x720 emulated viewport would leave the page smaller than
   // the window AND mismatch window.screen -- an incoherent fingerprint.
-  const context = browser.contexts()[0] || (await browser.newContext({ viewport: null }));
+  const context = browser.contexts()[0] || (await browser.newContext(browser._capiumMobile ? {} : { viewport: null }));
   if (humanize) human.humanize(context, humanPreset);
   const page = context.pages()[0] || (await context.newPage());
-  if (!headless) await fitWindow(browser, context, page); // modest window <= spoofed screen
+  if (!headless && !browser._capiumMobile) await fitWindow(browser, context, page); // modest window <= spoofed screen
   if (url) await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   return { browser, context, page };
 }

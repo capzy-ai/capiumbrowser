@@ -29,7 +29,10 @@ async function wait(binary, statusPath, timeoutMs = 30000, signal = null) {
     try {
       if (fs.readFileSync(statusPath, 'utf8').trim() === '0\nCAPIUM_LICENSE_READY') return;
     } catch (error) {
-      if (error.code !== 'ENOENT') throw error;
+      // The native writer briefly locks this owned file on Windows. Keep
+      // waiting for a real decision; unreadable status is never readiness.
+      if (!['ENOENT', 'EBUSY'].includes(error.code) &&
+          !(process.platform === 'win32' && ['EACCES', 'EPERM'].includes(error.code))) throw error;
     }
     if (Date.now() >= deadline) {
       throw new CapiumServerDownError('Timed out waiting for the browser license startup decision');

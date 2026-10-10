@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "status": "experimental-emulation",
+  "minimum_release_year": 2022,
+  "physical_device_validation": "pending",
+  "profiles": [
+    {
+      "id": "iphone-16",
+      "model": "iPhone 16",
+      "release_year": 2024,
+      "os_version": "26.6.1",
+      "browser_version": "155.0.8059.37",
+      "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 26_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/155.0.8059.37 Mobile/15E148 Safari/604.1",
+      "width": 393,
+      "height": 852,
+      "dpr": 3
+    }
+  ]
+}

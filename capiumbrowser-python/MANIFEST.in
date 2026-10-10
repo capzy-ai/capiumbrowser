@@ -1,5 +1,8 @@
 include README.md
 include LICENSE
 include capiumbrowser/channels.json
+include capiumbrowser/android-phones.json
+include capiumbrowser/ios-phones.json
+include capiumbrowser/browser-brands.json
 global-exclude __pycache__/*
 global-exclude *.py[cod]

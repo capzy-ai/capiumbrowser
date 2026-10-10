@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "verified_on": "2026-10-10",
+  "engine_version": "155.0.8059.39",
+  "scope": "Desktop UA and Client Hints profiles; does not install vendor engines or features.",
+  "profiles": [
+    {
+      "brand": "edge",
+      "product_version": "155.0.4283.45",
+      "chromium_version": "155.0.8059.40",
+      "hint_brand": "Microsoft Edge",
+      "ua_suffix": " Edg/",
+      "ua_version": "155.0.0.0",
+      "sources": [
+        "https://edgeupdates.microsoft.com/api/products?view=enterprise"
+      ],
+      "measurement": "Stock Edge 155 Windows and Linux owned-origin captures"
+    },
+    {
+      "brand": "opera",
+      "product_version": "137.0.6036.39",
+      "chromium_version": "153.0.8010.55",
+      "hint_brand": "Opera",
+      "ua_suffix": " OPR/",
+      "ua_version": "137.0.0.0",
+      "sources": [
+        "https://blogs.opera.com/desktop/changelog-for-137/",
+        "https://blogs.opera.com/desktop/2026/10/opera-137-stable/"
+      ],
+      "measurement": "Stock Opera 137 Linux owned-origin capture"
+    },
+    {
+      "brand": "vivaldi",
+      "product_version": "8.2.4133.84",
+      "chromium_version": "152.0.7977.160",
+      "hint_brand": "Google Chrome",
+      "ua_suffix": "",
+      "ua_version": "",
+      "sources": [
+        "https://vivaldi.com/blog/minor-update-nine-8-2/",
+        "https://vivaldi.com/blog/desktop/",
+        "https://help.vivaldi.com/developers/web/vivaldi-user-agent-and-client-hints-user-agent/"
+      ],
+      "measurement": "Stock Vivaldi 8.2 Linux owned-origin capture; default branding only, partner-site exceptions excluded"
+    }
+  ]
+}

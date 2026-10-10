@@ -78,3 +78,40 @@ test('licensed startup still waits for the driver handle',async t=>{
   const pending=new Promise(resolve=>setTimeout(()=>resolve(handle),40));
   assert.equal(await readiness.withLaunch(pending,path.join(root,'chrome'),status,500),handle);
 });
+
+for (const decision of ['0\nCAPIUM_LICENSE_READY', '4\nlicense rejected']) {
+  test('a locked status file waits for the actual native decision '+decision[0], async t => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'capium-ready-lock-'));
+    t.after(() => removeOwnedTemp(root));
+    fs.writeFileSync(path.join(root, 'CAPIUM_BUILD_INFO'), 'license_status_protocol : 1\n');
+    const status = path.join(root, 'status');
+    fs.writeFileSync(status, decision);
+    const original = fs.readFileSync;
+    let reads = 0;
+    t.mock.method(fs, 'readFileSync', function (file, ...args) {
+      if (file === status && ++reads <= 4) {
+        throw Object.assign(new Error('native writer holds the file'), {code:'EBUSY'});
+      }
+      return original.call(this, file, ...args);
+    });
+    if (decision[0] === '4') {
+      await assert.rejects(readiness.wait(path.join(root,'chrome'),status,500),CapiumExpiredError);
+    } else {
+      await readiness.wait(path.join(root,'chrome'),status,500);
+    }
+    assert.ok(reads > 4);
+  });
+}
+
+test('an always locked status file times out without accepting licensing', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'capium-ready-always-lock-'));
+  t.after(() => removeOwnedTemp(root));
+  fs.writeFileSync(path.join(root, 'CAPIUM_BUILD_INFO'), 'license_status_protocol : 1\n');
+  const status = path.join(root, 'status');
+  const original = fs.readFileSync;
+  t.mock.method(fs, 'readFileSync', function (file, ...args) {
+    if (file === status) throw Object.assign(new Error('locked'), {code:'EBUSY'});
+    return original.call(this,file,...args);
+  });
+  await assert.rejects(readiness.wait(path.join(root,'chrome'),status,30),CapiumServerDownError);
+});

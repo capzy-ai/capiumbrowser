@@ -42,16 +42,39 @@ def get_headless_default_args():
 
 # Chrome flags that make an automated launch look like a normal user session. These are
 # fingerprint-level; the bash wrapper adds the platform/GL/geoip/font/bluetooth/storage flags.
-def get_default_stealth_args(seed=None, platform="windows", screen=None):
+def get_default_stealth_args(seed=None, platform="windows", screen=None, mobile_device=None, browser_brand=None):
     """Return the default per-launch fingerprint flags.
 
     seed:     int identity seed (a stable, coherent device per seed). Random if None.
-    platform: "windows" | "macos" | "linux" -- the spoofed OS persona.
+    platform: "windows" | "macos" | "linux" | "android" | "ios" -- the OS persona.
+    mobile_device: optional Android catalog ID; otherwise the original seed modulo 5 mapping.
     screen:   None uses the binary's seeded screen and DPR. Development 155 defaults
               vary within 1920x1080. Headless starts with an 800x600 window; its screen
               remains independent of the viewport. An explicit (width, height) overrides
               the screen and startup window, including sizes above the default cap.
     """
+    from .desktop import brand_args
+    desktop_args = brand_args(browser_brand, platform)
+    if mobile_device is not None and platform not in ("android", "ios"):
+        raise ValueError('mobile_device requires platform="android" or "ios"')
+    if platform in ("android", "ios"):
+        from .mobile import mobile_profile
+        if seed is None:
+            raise ValueError("Mobile profiles require a seed")
+        profile = mobile_profile(seed, mobile_device, platform)
+        sw, sh = (int(screen[0]), int(screen[1])) if screen else (profile["width"], profile["height"])
+        return [
+            "--fingerprint=%d" % seed, "--fingerprint-platform=" + platform,
+            *(["--fingerprint-mobile-device=" + mobile_device] if mobile_device is not None else []),
+            "--fingerprint-allow-3p-cookies", "--disable-features=TrackingProtection3pcd",
+            "--blink-settings=primaryHoverType=0,availableHoverTypes=0,"
+            "primaryPointerType=2,availablePointerTypes=2,maxTouchPoints=5,"
+            "viewportEnabled=true,viewportMetaEnabled=true,shrinksViewportContentToFit=true",
+            "--touch-events=enabled", "--enable-viewport",
+            "--no-first-run", "--no-default-browser-check", "--fingerprint-noise=false",
+            "--window-size=%d,%d" % (sw, sh),
+            *(["--user-agent=" + profile["user_agent"], "--capium-preserve-user-agent"] if platform == "ios" else []),
+        ] + (["--fingerprint-screen-width=%d" % sw, "--fingerprint-screen-height=%d" % sh] if screen else [])
     args = []
     if seed is not None:
         args.append("--fingerprint=%d" % int(seed))
@@ -81,7 +104,7 @@ def get_default_stealth_args(seed=None, platform="windows", screen=None):
         # --capium-isolate-cdp-eval opts into legacy isolation;
         # --capium-disable-console-mask restores page/worker console delivery;
         # --capium-disable-cdp-stealth disables both policies on either engine.
-        # The published SDK still selects engine 153 until a release is approved.
+        # Published 1.2.0 selects engine 155.
     ]
     # Keep injected canvas/audio/rectangle noise opt-in. Device fonts and the
     # actual renderer can still affect pixels; noise=false does not guarantee
@@ -102,7 +125,7 @@ def get_default_stealth_args(seed=None, platform="windows", screen=None):
         args.append("--window-size=%d,%d" % (sw, sh))
         args.append("--fingerprint-screen-width=%d" % sw)
         args.append("--fingerprint-screen-height=%d" % sh)
-    return args
+    return args + desktop_args
 
 
 def new_seed():

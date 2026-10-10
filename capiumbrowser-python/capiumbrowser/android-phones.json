@@ -1,0 +1,99 @@
+{
+  "schema_version": 2,
+  "minimum_release_year": 2022,
+  "browser": "chrome",
+  "status": "experimental-emulation",
+  "gpu_policy": "host",
+  "hardware_policy": "host",
+  "physical_device_validation": "pending",
+  "default_profile_ids": [
+    "pixel-7",
+    "pixel-8",
+    "pixel-8-pro",
+    "pixel-8a",
+    "pixel-9"
+  ],
+  "sources": [
+    "https://support.google.com/pixelphone/answer/7158570?hl=en",
+    "https://news.samsung.com/global/samsung-galaxy-a55-5g-and-galaxy-a35-5g-awesome-innovations-and-security-engineered-for-everyone",
+    "https://www.samsung.com/ie/business/smartphones/galaxy-a/galaxy-a55-5g-awesome-navy-256gb-sm-a556bzkceub/",
+    "https://chromium.googlesource.com/devtools/devtools-frontend/+/cd7bfad9bba968ac23ba67e538f9e1d499991d25/front_end/models/emulation/EmulatedDevices.ts"
+  ],
+  "profiles": [
+    {
+      "id": "pixel-7",
+      "model": "Pixel 7",
+      "release_year": 2022,
+      "platform_version": "13",
+      "width": 412,
+      "height": 915,
+      "dpr": 2.625
+    },
+    {
+      "id": "pixel-8",
+      "model": "Pixel 8",
+      "release_year": 2023,
+      "platform_version": "14",
+      "width": 412,
+      "height": 915,
+      "dpr": 2.625
+    },
+    {
+      "id": "pixel-8-pro",
+      "model": "Pixel 8 Pro",
+      "release_year": 2023,
+      "platform_version": "14",
+      "width": 448,
+      "height": 997,
+      "dpr": 3.0
+    },
+    {
+      "id": "pixel-8a",
+      "model": "Pixel 8a",
+      "release_year": 2024,
+      "platform_version": "14",
+      "width": 412,
+      "height": 915,
+      "dpr": 2.625
+    },
+    {
+      "id": "pixel-9",
+      "model": "Pixel 9",
+      "release_year": 2024,
+      "platform_version": "14",
+      "width": 412,
+      "height": 924,
+      "dpr": 2.625
+    },
+    {
+      "id": "samsung-galaxy-a55",
+      "model": "SM-A556B",
+      "display_name": "Samsung Galaxy A55",
+      "release_year": 2024,
+      "platform_version": "14",
+      "width": 360,
+      "height": 800,
+      "dpr": 2.25,
+      "geometry_status": "devtools-emulation-only",
+      "geometry_note": "These Chromium preset dimensions/DPR do not directly map to the published 1080x2340 panel; physical Chrome capture required."
+    },
+    {
+      "id": "pixel-9-pro",
+      "model": "Pixel 9 Pro",
+      "release_year": 2024,
+      "platform_version": "14",
+      "width": 427,
+      "height": 952,
+      "dpr": 3.0
+    },
+    {
+      "id": "pixel-9-pro-xl",
+      "model": "Pixel 9 Pro XL",
+      "release_year": 2024,
+      "platform_version": "14",
+      "width": 448,
+      "height": 997,
+      "dpr": 3.0
+    }
+  ]
+}

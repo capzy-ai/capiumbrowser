@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "capiumbrowser"
-version = "1.2.0"
+version = "1.2.1"
 description = "Drop-in stealth browser SDK on top of Playwright (Capium Chromium)."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -45,4 +45,4 @@ where = ["."]
 include = ["capiumbrowser*"]
 
 [tool.setuptools.package-data]
-capiumbrowser = ["channels.json"]
+capiumbrowser = ["channels.json", "android-phones.json", "ios-phones.json", "browser-brands.json"]
