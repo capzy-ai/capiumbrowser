@@ -19,10 +19,11 @@ function required(binary) {
   return false;
 }
 
-async function wait(binary, statusPath, timeoutMs = 30000) {
+async function wait(binary, statusPath, timeoutMs = 30000, signal = null) {
   if (!required(binary)) return;
   const deadline = Date.now() + (timeoutMs || 30000);
   for (;;) {
+    if (signal?.aborted) return;
     const error = readLaunchStatus(statusPath);
     if (error) throw error;
     try {
@@ -39,7 +40,16 @@ async function wait(binary, statusPath, timeoutMs = 30000) {
 // Drivers may leave startup pending after the native process refuses the license.
 // Observe the native decision while the driver connects, so rejection cannot hang.
 async function withLaunch(pending, binary, statusPath, timeoutMs) {
-  const [handle] = await Promise.all([pending, wait(binary, statusPath, timeoutMs)]);
-  return handle;
+  const controller = new AbortController();
+  try {
+    const [handle] = await Promise.all([
+      pending, wait(binary, statusPath, timeoutMs, controller.signal),
+    ]);
+    return handle;
+  } finally {
+    // A driver can reject before the native decision is written. Do not keep
+    // polling a removed status file, or keep Node alive until the deadline.
+    controller.abort();
+  }
 }
 module.exports = { required, wait, withLaunch };

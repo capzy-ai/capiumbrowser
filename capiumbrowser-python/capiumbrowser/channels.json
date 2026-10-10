@@ -7,21 +7,21 @@
       "windows-x64": {
         "version": "155.0.8059.39",
         "revision": 1,
-        "sha256": "5259e1e9aa100467bc47b42052d6c66859905b47bc2127e55426b305ba7e8425",
+        "sha256": "d973e2460ce05e99f7e5c1dddc319ae96733434d9986dadc4cec5bac1c2597fb",
         "published": true,
         "license_status_protocol": 1
       },
       "macos-arm64": {
         "version": "155.0.8059.39",
         "revision": 1,
-        "sha256": "ad75a42b162a5fafd62786571cc33f5c0c830815867da4fb57e2926ea8ecfad9",
+        "sha256": "f07d54b88feb6644388196d6b91c9787592c1f6e07a8122344f47faed76b9262",
         "published": true,
         "license_status_protocol": 1
       },
       "linux-x64": {
         "version": "155.0.8059.39",
         "revision": 1,
-        "sha256": "72e958b6a54ddb4fbe5aeb0b986aa6630eca6bf2c65b491cdd11cfa463806525",
+        "sha256": "a15cd395e1f8b792d9539c8284edcd589c6b91ef77f8b1fa5ea408f1f220b540",
         "published": true,
         "license_status_protocol": 1
       },

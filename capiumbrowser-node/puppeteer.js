@@ -182,6 +182,8 @@ async function launch(opts = {}) {
   }
   // Strip automation + forced-software WebGL defaults unless the caller took over ignoreDefaultArgs.
   const ida = ignoreDefaultArgs === undefined ? config.IGNORE_DEFAULT_ARGS : ignoreDefaultArgs;
+  const nativeGate = readiness.required(prep.binPath);
+  const waitForInitialPage = rest.waitForInitialPage !== false;
   let browser;
   try {
     const pending = puppeteer.launch({
@@ -192,8 +194,17 @@ async function launch(opts = {}) {
       defaultViewport: 'defaultViewport' in rest ? rest.defaultViewport : null,
       ignoreDefaultArgs: ida,
       ...rest,
+      // A rejected native gate never creates a page. Obtain the transport first,
+      // so Puppeteer does not leave its initial-page timer running after refusal.
+      waitForInitialPage: nativeGate ? false : waitForInitialPage,
     }).then(handle => { browser = handle; return handle; });
     await readiness.withLaunch(pending, prep.binPath, prep.statusPath, rest.timeout);
+    if (nativeGate && waitForInitialPage) {
+      await browser.waitForTarget(target => target.type() === 'page', {
+        timeout: rest.timeout === undefined ? 30000 : rest.timeout,
+        signal: rest.signal,
+      });
+    }
   } catch (e) {
     // A native refusal terminates the process; closing its dead CDP connection can hang.
     if (!readLaunchStatus(prep.statusPath) && browser) {

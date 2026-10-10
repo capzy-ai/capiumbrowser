@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const readiness = require('../lib/license-readiness');
+const { spawnSync } = require('node:child_process');
 const {readLaunchStatus, CapiumExpiredError, CapiumServerDownError} = require('../lib/errors');
 
 function removeOwnedTemp(root) {
@@ -50,6 +51,21 @@ test('native rejection rejects even when driver startup stays pending',async t=>
   const timer=setTimeout(()=>fs.writeFileSync(status,'4\nlicense rejected'),30);
   t.after(()=>clearTimeout(timer));
   await assert.rejects(readiness.withLaunch(new Promise(()=>{}),path.join(root,'chrome'),status,500),CapiumExpiredError);
+});
+
+test('a failed driver launch does not keep Node alive for the readiness deadline', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'capium-ready-cancel-'));
+  t.after(() => removeOwnedTemp(root));
+  fs.writeFileSync(path.join(root, 'CAPIUM_BUILD_INFO'), 'license_status_protocol : 1\n');
+  const source = `
+    const readiness = require(${JSON.stringify(require.resolve('../lib/license-readiness'))});
+    readiness.withLaunch(Promise.reject(new Error('driver failed')),
+      ${JSON.stringify(path.join(root, 'chrome'))}, ${JSON.stringify(path.join(root, 'missing'))}, 10000)
+      .catch(error => { if (error.message !== 'driver failed') process.exitCode = 1; });
+  `;
+  const result = spawnSync(process.execPath, ['-e', source], { timeout: 1500 });
+  assert.equal(result.error, undefined, 'readiness polling kept the child process alive');
+  assert.equal(result.status, 0);
 });
 
 test('licensed startup still waits for the driver handle',async t=>{
