@@ -24,16 +24,20 @@ import shutil
 IGNORE_DEFAULT_ARGS = ["--enable-automation", "--enable-unsafe-swiftshader"]
 
 
-# The 155 engine selects a seeded screen within these default bounds. Start
-# headless windows small enough to fit its modes without replacing the screen.
-# Explicit screen/window flags take
-# precedence. HEADLESS_SCREEN remains the upper bound for existing consumers.
+# The 155 engine selects a seeded screen within these default bounds. The headless
+# window is sized PER SEED after launch (browser._fit_window_to_screen -> the seed's
+# screen.availWidth/Height), giving a coherent maximized viewport < screen for every
+# profile. HEADLESS_VIEWPORT is only the brief STARTUP fallback before that fit runs
+# (and the value raw launch() callers get if they build their own contexts); it must
+# fit the smallest default seeded screen (win/linux min is 1280x720), so it is NOT the
+# 800x600 headless-Chrome default tell. Explicit screen/window flags take precedence.
 HEADLESS_SCREEN = (1920, 1080)
-HEADLESS_VIEWPORT = (800, 600)
+HEADLESS_VIEWPORT = (1280, 720)
 
 
 def get_headless_default_args():
-    """Choose startup bounds without replacing the engine's seeded screen."""
+    """Startup window bounds (a safe, common fallback); the per-seed fit resizes to the
+    seeded screen's available area after launch without replacing the engine's screen."""
     vw, vh = HEADLESS_VIEWPORT
     return [
         "--window-size=%d,%d" % (vw, vh),

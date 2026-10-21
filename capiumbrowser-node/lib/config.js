@@ -24,12 +24,14 @@ const path = require('path');
 //                                 the deployed environment for either backend.
 const IGNORE_DEFAULT_ARGS = ['--enable-automation', '--enable-unsafe-swiftshader'];
 
-// The 155 engine selects a seeded screen within these default bounds. Start
-// headless windows small enough to fit its modes without replacing the screen.
-// Explicit screen/window flags take
-// precedence. HEADLESS_SCREEN remains the upper bound for existing consumers.
+// The 155 engine selects a seeded screen within these default bounds. The headless
+// window is sized PER SEED after launch (fitWindow -> the seed's screen.availWidth/Height),
+// giving a coherent maximized viewport < screen for every profile. HEADLESS_VIEWPORT is only
+// the brief STARTUP fallback before that fit runs; it must fit the smallest default seeded
+// screen (win/linux min is 1280x720), so it is NOT the 800x600 headless-Chrome default tell.
+// Explicit screen/window flags take precedence.
 const HEADLESS_SCREEN = [1920, 1080];
-const HEADLESS_VIEWPORT = [800, 600];
+const HEADLESS_VIEWPORT = [1280, 720];
 
 function getHeadlessDefaultArgs() {
   const [vw, vh] = HEADLESS_VIEWPORT;
