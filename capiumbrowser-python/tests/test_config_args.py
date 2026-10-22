@@ -57,16 +57,19 @@ def test_third_party_cookies_allowed():
 
 
 def test_headless_default_keeps_seeded_screen():
+    # Startup fallback is a safe common size (not the 800x600 headless-default tell) and
+    # does NOT pin the screen -- the per-seed window fit resizes to the seeded screen.
     a = config.get_headless_default_args()
     assert not _has(a, "--fingerprint-screen-width")
     assert not _has(a, "--fingerprint-screen-height")
-    assert "--window-size=800,600" in a
+    assert "--window-size=1280,720" in a
+    assert "--window-size=800,600" not in a
 
 
 def test_build_args_adds_headless_default_only_headless():
     from capiumbrowser import browser
     headless = browser._build_args(1, "windows", True, None, None, None, None, headless=True)
-    assert "--window-size=800,600" in headless
+    assert "--window-size=1280,720" in headless
     assert not _has(headless, "--fingerprint-screen-width")
     assert not _has(headless, "--fingerprint-screen-height")
     headed = browser._build_args(1, "windows", True, None, None, None, None, headless=False)

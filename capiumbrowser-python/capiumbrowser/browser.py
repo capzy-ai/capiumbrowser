@@ -171,6 +171,7 @@ def _fit_window_to_screen(context):
     (works for persistent contexts, which have no browser() object). This keeps screen~=viewport in
     headless/container (avoids the browserscan 'screen != viewport' VM tell) AND stays coherent in
     headed (Chrome clamps to the real display -> a normal viewport<screen window). Best-effort."""
+    s = None
     try:
         page = context.pages[0] if context.pages else None
         if not page:
@@ -185,6 +186,12 @@ def _fit_window_to_screen(context):
             "left": 0, "top": 0, "width": aw, "height": ah, "windowState": "normal"}})
     except Exception:
         pass
+    finally:
+        if s is not None:
+            try:
+                s.detach()
+            except Exception:
+                pass
 
 
 def _wrap_close(obj, pw):
@@ -415,6 +422,13 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
         raise
     _clear_status_file(status_path)
     ctx._capium_seed = seed
+    # Fit every headed desktop brand before its engine check returns the context.
+    # Mobile profiles retain their catalog viewport and startup bounds.
+    # Size the window to the seed's screen for desktop personas -- in HEADLESS too, so the
+    # viewport is a coherent per-seed maximized size (e.g. 1920x1080 screen -> ~1904x911)
+    # instead of the tiny startup window. Mobile keeps its device viewport.
+    if not (platform in ("android", "ios") and stealth_args):
+        _fit_window_to_screen(ctx)
     if desktop.normalize_brand(browser_brand) != "chrome":
         ctx = _wrap_close(ctx, pw)
         try:
@@ -431,11 +445,6 @@ def launch_persistent_context(user_data_dir, seed=None, platform="windows", head
             ctx.close()
             raise
         return ctx
-    # Headed persistent launches fit the window to the selected screen. Headless
-    # keeps its startup bounds (800x600 by default) independent of the seeded screen;
-    # callers can choose larger window bounds explicitly.
-    if not headless:
-        _fit_window_to_screen(ctx)
     return _wrap_close(ctx, pw)
 
 
@@ -457,8 +466,11 @@ def launch_context(seed=None, platform="windows", headless=False, url=None,
         from . import human as _human
         _human.humanize(context, preset=human_preset)
     page = context.pages[0] if context.pages else context.new_page()
-    if not headless and not getattr(browser, "_capium_mobile", False):
-        fit_window(browser, context, page)   # modest window <= spoofed screen
+    if not getattr(browser, "_capium_mobile", False):
+        if headless:
+            _fit_window_to_screen(context)   # per-seed screen fit (coherent viewport, not the tiny startup window)
+        else:
+            fit_window(browser, context, page)   # modest window <= spoofed screen
     if url:
         page.goto(url, wait_until="domcontentloaded", timeout=60000)
     return browser, context, page

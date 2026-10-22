@@ -75,16 +75,18 @@ test('third-party cookies allowed', () => {
 });
 
 test('headless startup bounds keep the seeded screen', () => {
+  // Safe common fallback (not the 800x600 headless-default tell); does not pin the screen.
   const a = config.getHeadlessDefaultArgs();
   assert.ok(!has(a, '--fingerprint-screen-width'));
   assert.ok(!has(a, '--fingerprint-screen-height'));
-  assert.ok(a.includes('--window-size=800,600'));
+  assert.ok(a.includes('--window-size=1280,720'));
+  assert.ok(!a.includes('--window-size=800,600'));
 });
 
 test('buildArgs adds the headless default only in headless', () => {
   const { buildArgs } = require('../lib/launch-common');
   const headless = buildArgs({ seed: 1, platform: 'windows', stealthArgs: true, headless: true });
-  assert.ok(headless.includes('--window-size=800,600'));
+  assert.ok(headless.includes('--window-size=1280,720'));
   assert.ok(!has(headless, '--fingerprint-screen-width'));
   assert.ok(!has(headless, '--fingerprint-screen-height'));
   const headed = buildArgs({ seed: 1, platform: 'windows', stealthArgs: true, headless: false });
@@ -97,7 +99,7 @@ test('buildArgs headless default yields to an explicit screen', () => {
     extra: ['--window-size=2560,1440', '--fingerprint-screen-width=2560',
       '--fingerprint-screen-height=1440'], headless: true });
   assert.equal(a.filter(x => x === '--window-size=2560,1440').length, 1);
-  assert.ok(!a.includes('--window-size=800,600'));
+  assert.ok(!a.includes('--window-size=1280,720'));
   assert.ok(a.includes('--fingerprint-screen-width=2560'));
   assert.ok(a.includes('--fingerprint-screen-height=1440'));
 });
