@@ -24,12 +24,14 @@ const path = require('path');
 //                                 the deployed environment for either backend.
 const IGNORE_DEFAULT_ARGS = ['--enable-automation', '--enable-unsafe-swiftshader'];
 
-// The 155 engine selects a seeded screen within these default bounds. Start
-// headless windows small enough to fit its modes without replacing the screen.
-// Explicit screen/window flags take
-// precedence. HEADLESS_SCREEN remains the upper bound for existing consumers.
+// The 155 engine selects a seeded screen within these default bounds. The headless
+// window is sized PER SEED after launch (fitWindow -> the seed's screen.availWidth/Height),
+// giving a coherent maximized viewport < screen for every profile. HEADLESS_VIEWPORT is only
+// the brief STARTUP fallback before that fit runs; it must fit the smallest default seeded
+// screen (win/linux min is 1280x720), so it is NOT the 800x600 headless-Chrome default tell.
+// Explicit screen/window flags take precedence.
 const HEADLESS_SCREEN = [1920, 1080];
-const HEADLESS_VIEWPORT = [800, 600];
+const HEADLESS_VIEWPORT = [1280, 720];
 
 function getHeadlessDefaultArgs() {
   const [vw, vh] = HEADLESS_VIEWPORT;
@@ -71,7 +73,9 @@ function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null,
         'primaryPointerType=2,availablePointerTypes=2,maxTouchPoints=5,' +
         'viewportEnabled=true,viewportMetaEnabled=true,shrinksViewportContentToFit=true',
       '--touch-events=enabled', '--enable-viewport',
-      '--no-first-run', '--no-default-browser-check', '--fingerprint-noise=false',
+      // Per-profile render noise ON (engine default), same as desktop: mobile canvas/WebGL/audio
+      // are unique + stable per seed instead of identical across profiles on one host.
+      '--no-first-run', '--no-default-browser-check',
       `--window-size=${sw},${sh}`,
       ...(platform === 'ios' ? [`--user-agent=${p.user_agent}`, '--capium-preserve-user-agent'] : []),
       ...(screen ? [`--fingerprint-screen-width=${sw}`, `--fingerprint-screen-height=${sh}`] : []),
@@ -108,10 +112,11 @@ function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null,
     // requests that legacy mode on 155. See docs/SDK-GPU-AUDIT.md for measured
     // page-global, object-handle and binding compatibility.
   );
-  // Keep injected canvas/audio/rectangle noise opt-in. Device fonts and the
-  // actual renderer can still affect pixels; noise=false does not guarantee
-  // identical canvases across personas or a particular detector classification.
-  args.push('--fingerprint-noise=false');
+  // Per-profile render farbling is ON (engine default) so canvas/WebGL/audio are unique AND
+  // stable per seed; without it every profile on a host renders identically (a cross-instance
+  // correlation surface a detector clusters over time). The engine farbles deterministically per
+  // (seed,x,y), skipping low-entropy images. Combined with the per-profile seed, each profile gets
+  // a distinct render fingerprint. Opt out via args: ['--fingerprint-noise=false'].
   // A Windows persona's font metrics must match real Windows (needs Windows fonts
   // present on the host); harmless elsewhere, so gate it to the windows persona.
   if (platform === 'windows') args.push('--fingerprint-windows-font-metrics');
@@ -134,6 +139,28 @@ function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null,
 /** A fresh random identity seed. */
 function newSeed() {
   return 1 + Math.floor(Math.random() * (2 ** 31 - 2));
+}
+
+/** Stable, unique-per-machine seed, persisted in CAPIUM_HOME/machine-seed (random on first use,
+ *  never derived from hardware so it leaks nothing). Keeps a machine's no-seed identity
+ *  consistent across launches instead of colliding on the engine's built-in default. */
+function machineSeed() {
+  const os = require('os'), fs = require('fs'), path = require('path');
+  const home = process.env.CAPIUM_HOME || path.join(os.homedir(), '.capium');
+  const p = path.join(home, 'machine-seed');
+  try { const v = parseInt(fs.readFileSync(p, 'utf8').trim(), 10); if (v > 0) return v; } catch (e) { /* first use */ }
+  const s = 1 + Math.floor(Math.random() * (2 ** 31 - 2));
+  try { fs.mkdirSync(home, { recursive: true }); fs.writeFileSync(p, String(s)); } catch (e) { /* ephemeral ok */ }
+  return s;
+}
+
+/** Stable seed unique to this (machine, profile) pair -- a hash of the machine seed and the
+ *  profile directory. Each persistent profile gets a distinct, consistent fingerprint so no two
+ *  profiles collide (not the same path on different machines, nor different profiles on one host). */
+function profileSeed(userDataDir) {
+  const crypto = require('crypto'), path = require('path');
+  const base = `${machineSeed()}:${path.resolve(userDataDir)}`;
+  return (crypto.createHash('sha256').update(base).digest().readUInt32BE(0) % (2 ** 31 - 1)) + 1;
 }
 
 // ---- binary / wrapper discovery -------------------------------------------------------------
@@ -336,6 +363,8 @@ module.exports = {
   getHeadlessDefaultArgs,
   hasScreenOverride,
   newSeed,
+  machineSeed,
+  profileSeed,
   findBinary,
   searchBases,
   _ensureExecutable: ensureExecutable,

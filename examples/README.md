@@ -144,7 +144,8 @@ console.log(await page.evaluate(() => document.body.innerText));
 await ctx.close();
 ```
 
-`--fingerprint-noise=false` and `--fingerprint-windows-font-metrics` (the clean
-recipe) are passed **by default**; override with `stealth_args=False` or extra
-`args=[...]`. See the [capiumbrowser README](../README.md) and
+`--fingerprint-windows-font-metrics` is passed **by default** for Windows personas, and
+per-profile render noise (canvas/WebGL/audio unique + stable per profile) is **on** by
+default; override with `stealth_args=False` or extra `args=[...]` (e.g.
+`--fingerprint-noise=false`). See the [capiumbrowser README](../README.md) and
 <https://docs.capiumbrowser.com> for the full API.

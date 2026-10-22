@@ -236,6 +236,9 @@ async function requireMobileEngine(context, mobileDevice = null, seed = 0, platf
  * Same options as launch(); returns a BrowserContext.
  */
 async function launchPersistentContext(userDataDir, opts = {}) {
+  // Stable per-profile seed from the persistent profile dir so each profile gets a distinct,
+  // consistent fingerprint and no two profiles collide. An explicit opts.seed still wins.
+  if (opts.seed === null || opts.seed === undefined) opts = { ...opts, seed: config.profileSeed(userDataDir) };
   const {
     seed, platform, mobileDevice, browserBrand, proxy, geoip, args, stealthArgs, timezone, locale, extensionPaths,
     binary, licenseKey, licenseServer, licenseThroughProxy, licensePreflight,
@@ -272,6 +275,13 @@ async function launchPersistentContext(userDataDir, opts = {}) {
   }
   try { await require('./lib/desktop').requireEngine(ctx, prep.browserBrand); }
   catch (e) { await ctx.close(); throw e; }
+  // Desktop personas: size the window to the seed's screen -- in HEADLESS too, so the
+  // viewport is a coherent per-seed maximized size instead of the tiny startup window.
+  // Mobile keeps its device viewport.
+  if (prep.mobileSeed === null) {
+    const page = ctx.pages()[0] || await ctx.newPage();
+    await fitWindow(ctx.browser(), ctx, page);
+  }
   return ctx;
 }
 
@@ -282,6 +292,7 @@ async function launchPersistentContext(userDataDir, opts = {}) {
  * window to <= the available screen with a slight offset. No-op on failure/headless.
  */
 async function fitWindow(browser, context, page) {
+  let pcdp, bcdp;
   try {
     const scr = await page.evaluate(() => ({ w: screen.availWidth, h: screen.availHeight }));
     if (!scr || !scr.w || !scr.h) return;
@@ -293,16 +304,21 @@ async function fitWindow(browser, context, page) {
     const h = ah;
     const left = 0;
     const top = 0;
-    const pcdp = await context.newCDPSession(page);
+    pcdp = await context.newCDPSession(page);
     const { targetInfo } = await pcdp.send('Target.getTargetInfo');
-    const bcdp = await browser.newBrowserCDPSession();
+    // Persistent contexts may have no Browser handle; their page session still
+    // supports the Browser window commands.
+    bcdp = browser ? await browser.newBrowserCDPSession() : pcdp;
     const { windowId } = await bcdp.send('Browser.getWindowForTarget',
       { targetId: targetInfo.targetId });
     await bcdp.send('Browser.setWindowBounds', {
       windowId,
       bounds: { left, top, width: w, height: h, windowState: 'normal' },
     });
-  } catch {}
+  } catch {} finally {
+    if (bcdp && bcdp !== pcdp) await bcdp.detach().catch(() => {});
+    if (pcdp) await pcdp.detach().catch(() => {});
+  }
 }
 
 /**
@@ -322,7 +338,7 @@ async function launchContext(opts = {}) {
   const context = browser.contexts()[0] || (await browser.newContext(browser._capiumMobile ? {} : { viewport: null }));
   if (humanize) human.humanize(context, humanPreset);
   const page = context.pages()[0] || (await context.newPage());
-  if (!headless && !browser._capiumMobile) await fitWindow(browser, context, page); // modest window <= spoofed screen
+  if (!browser._capiumMobile) await fitWindow(browser, context, page); // per-seed screen fit (headed + headless)
   if (url) await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   return { browser, context, page };
 }

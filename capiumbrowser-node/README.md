@@ -753,7 +753,7 @@ license key; it prints a fix for anything missing and exits non-zero if the envi
 | `CapiumSeatLimitError` | Free tier is 1 concurrent session — close the other Capium browser (or upgrade the tier). |
 | Still blocked on aggressive sites | Compare a matching persona with stock Chrome through assigned proxies. Check route, timezone, graphics availability and detector fields separately; headed mode under Xvfb also needs a working graphics backend. |
 | Intermittent 403s on reCAPTCHA Enterprise sites | Prefer the **Playwright** front-end — Puppeteer's CDP protocol usage leaks more automation signals (a Puppeteer limitation, not a Capium one). |
-| FPJS `tampering: true` | Prefer a matching-OS host and keep the default `--fingerprint-noise=false`. The current Linux audit remains flagged even with hardware Vulkan; ML zero alone does not clear tampering or anomaly. See the [audit](../../docs/SDK-GPU-AUDIT.md). |
+| FPJS `tampering: true` | Prefer a matching-OS host. Per-profile render noise is **on** by default (deterministic per profile; opt out with `--fingerprint-noise=false`). The current Linux audit remains flagged even with hardware Vulkan; ML zero alone does not clear tampering or anomaly. See the [audit](../../docs/SDK-GPU-AUDIT.md). |
 | "Windows persona but missing fonts" | Supply real `C:\Windows\Fonts\*.ttf` (see [Fonts](#fonts)) or set `CAPIUM_SUPPRESS_FONT_WARNING=1`. |
 | `os_mismatch: true` | A network/transport signal (genuine Chrome shows it too behind some proxies) — a routing concern, not the browser. |
 | Headed browser won't start on a server | Run under `Xvfb` and export `DISPLAY=:99`. |
