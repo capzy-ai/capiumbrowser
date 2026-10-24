@@ -14,7 +14,7 @@ python -m pytest tests/ -q
 |---|---|
 | `test_proxy.py` | `--proxy-server` construction + inline-credential encoding (the comma-username `ERR_TUNNEL_CONNECTION_FAILED` class), idempotent encoding, SOCKS-always-inline, the CDP escape hatch, `--proxy-bypass-list`. |
 | `test_geoip_flags.py` | The `geoip` tri-state: `None` = OFF even with a proxy (a proxy alone must not add `--geoip`), `True` = `--geoip`, `False` = `--geoip=false`. Sync + async paths. |
-| `test_config_args.py` | Default stealth flags: storage-quota formula, Windows-only font-metrics, `--fingerprint-noise=false`, screen==window coherence, seed-less launch. |
+| `test_config_args.py` | Default stealth flags: storage-quota formula, Windows-only font-metrics, per-profile render noise on by default, screen==window coherence, seed-less launch. |
 | `test_download_contract.py` | Host → distro tag (`_norm_os`/`_norm_arch`), unsupported platforms raise, and the versioned artifact URL shape. |
 | `test_channels_manifest.py` | `channels.json` parses, has all four tags, well-formed versions, and the download tag map / `binary_version_for` / `is_published` agree with it. |
 | `test_version_tables_consistent.py` | Parses the C++ tree and asserts the **four** version tables agree on the current major's per-platform build (`fingerprint_data.h` ⇄ `kCapiumChromeBuilds` ⇄ `kStable` ⇄ the fallback pool). Auto-enforces `docs/VERSION-BUMP.md`; skips on an SDK-only checkout. |

@@ -24,16 +24,20 @@ import shutil
 IGNORE_DEFAULT_ARGS = ["--enable-automation", "--enable-unsafe-swiftshader"]
 
 
-# The 155 engine selects a seeded screen within these default bounds. Start
-# headless windows small enough to fit its modes without replacing the screen.
-# Explicit screen/window flags take
-# precedence. HEADLESS_SCREEN remains the upper bound for existing consumers.
+# The 155 engine selects a seeded screen within these default bounds. The headless
+# window is sized PER SEED after launch (browser._fit_window_to_screen -> the seed's
+# screen.availWidth/Height), giving a coherent maximized viewport < screen for every
+# profile. HEADLESS_VIEWPORT is only the brief STARTUP fallback before that fit runs
+# (and the value raw launch() callers get if they build their own contexts); it must
+# fit the smallest default seeded screen (win/linux min is 1280x720), so it is NOT the
+# 800x600 headless-Chrome default tell. Explicit screen/window flags take precedence.
 HEADLESS_SCREEN = (1920, 1080)
-HEADLESS_VIEWPORT = (800, 600)
+HEADLESS_VIEWPORT = (1280, 720)
 
 
 def get_headless_default_args():
-    """Choose startup bounds without replacing the engine's seeded screen."""
+    """Startup window bounds (a safe, common fallback); the per-seed fit resizes to the
+    seeded screen's available area after launch without replacing the engine's screen."""
     vw, vh = HEADLESS_VIEWPORT
     return [
         "--window-size=%d,%d" % (vw, vh),
@@ -42,6 +46,42 @@ def get_headless_default_args():
 
 # Chrome flags that make an automated launch look like a normal user session. These are
 # fingerprint-level; the bash wrapper adds the platform/GL/geoip/font/bluetooth/storage flags.
+def _machine_seed():
+    """A stable, unique-per-machine fingerprint seed.
+
+    Persisted as a random 32-bit value in CAPIUM_HOME/machine-seed on first use -- it is NOT
+    derived from hardware (so it leaks nothing about the host) but is fixed thereafter, so a
+    machine keeps one consistent identity across launches instead of every no-seed instance
+    collapsing onto the engine's built-in default seed (identical renders). Used only when the
+    caller passes no seed; callers that want a specific identity still pass seed=."""
+    import random
+    home = os.environ.get("CAPIUM_HOME") or os.path.join(os.path.expanduser("~"), ".capium")
+    path = os.path.join(home, "machine-seed")
+    try:
+        with open(path) as f:
+            return int(f.read().strip())
+    except (OSError, ValueError):
+        pass
+    s = random.SystemRandom().randrange(1, 2**31)
+    try:
+        os.makedirs(home, exist_ok=True)
+        with open(path, "w") as f:
+            f.write(str(s))
+    except OSError:
+        pass
+    return s
+
+
+def _profile_seed(user_data_dir):
+    """Stable seed unique to this (machine, profile) pair -- a hash of the per-machine seed and the
+    profile directory. Each persistent profile (user_data_dir) on each machine gets a distinct,
+    consistent fingerprint, so no two profiles collide (not the same path on different machines,
+    nor different profiles on one host) and a profile keeps one identity across launches."""
+    import hashlib
+    base = "%d:%s" % (_machine_seed(), os.path.abspath(user_data_dir))
+    return int.from_bytes(hashlib.sha256(base.encode()).digest()[:4], "big") % (2**31 - 1) + 1
+
+
 def get_default_stealth_args(seed=None, platform="windows", screen=None, mobile_device=None, browser_brand=None):
     """Return the default per-launch fingerprint flags.
 
@@ -71,7 +111,9 @@ def get_default_stealth_args(seed=None, platform="windows", screen=None, mobile_
             "primaryPointerType=2,availablePointerTypes=2,maxTouchPoints=5,"
             "viewportEnabled=true,viewportMetaEnabled=true,shrinksViewportContentToFit=true",
             "--touch-events=enabled", "--enable-viewport",
-            "--no-first-run", "--no-default-browser-check", "--fingerprint-noise=false",
+            # Per-profile render noise ON (engine default), same as desktop: mobile canvas/WebGL/
+            # audio are unique + stable per seed instead of identical across profiles on one host.
+            "--no-first-run", "--no-default-browser-check",
             "--window-size=%d,%d" % (sw, sh),
             *(["--user-agent=" + profile["user_agent"], "--capium-preserve-user-agent"] if platform == "ios" else []),
         ] + (["--fingerprint-screen-width=%d" % sw, "--fingerprint-screen-height=%d" % sh] if screen else [])
@@ -99,17 +141,21 @@ def get_default_stealth_args(seed=None, platform="windows", screen=None, mobile_
         "primaryPointerType=4,availablePointerTypes=4",
         "--no-first-run",
         "--no-default-browser-check",
-        # Engine 153 redirects main-world evaluations by default. Development
-        # 155 honors the requested context and keeps console masking independent:
-        # --capium-isolate-cdp-eval opts into legacy isolation;
-        # --capium-disable-console-mask restores page/worker console delivery;
-        # --capium-disable-cdp-stealth disables both policies on either engine.
-        # Published 1.2.0 selects engine 155.
+        # CDP stealth defaults (engine 156): inspector-frame scrub ON (hides the
+        # UtilityScript/eval source-URL leak from Error.stack -- Patchright-equivalent,
+        # does not trip anti-detect ML); console mask OFF (ON makes developer_tools=false
+        # -> FPJS anti_detect/tampering) -- opt in with --capium-enable-console-mask; main-
+        # world evaluate isolation OFF (ON breaks page-global access for solvers) -- opt in
+        # with --capium-isolate-cdp-eval. --capium-disable-cdp-stealth turns everything off.
+        # See docs/STEALTH-FLAGS.md.
     ]
-    # Keep injected canvas/audio/rectangle noise opt-in. Device fonts and the
-    # actual renderer can still affect pixels; noise=false does not guarantee
-    # identical canvases across personas or a particular detector classification.
-    args.append("--fingerprint-noise=false")
+    # Per-profile render farbling is ON (the engine default) so canvas/WebGL/audio are unique AND
+    # stable per seed. Without it, every profile on a host renders identically -- a cross-instance
+    # correlation surface a detector clusters over time. The engine farbles deterministically per
+    # (seed,x,y) and skips low-entropy images (so trivial hashes aren't perturbed). Combined with
+    # the per-machine seed above, each machine gets a distinct, consistent render fingerprint.
+    # Opt out with CAPIUM_EXTRA_ARGS=--fingerprint-noise=false (e.g. when byte-exact canvas is
+    # required). Previously this forced =false, collapsing all profiles onto the host's raw render.
     # A Windows persona's font metrics must match real Windows (needs Windows fonts
     # present on the host); harmless elsewhere, so gate it to the windows persona.
     if platform == "windows":

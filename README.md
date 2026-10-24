@@ -987,7 +987,7 @@ non-zero if the environment isn't ready. A bare `python -m capiumbrowser` runs `
 | `no license configured` | Set `CAPIUM_LICENSE_KEY`, pass `license_key=…`, or create `~/.capium/license` (`KEY=cap_…`). |
 | `CapiumSeatLimitError` | Free tier is 1 concurrent session — close the other Capium browser (or upgrade the tier). |
 | Still blocked on aggressive sites | Run **headed** (`headless=False` under Xvfb) + a **residential** proxy + `geoip=True` + `humanize=True`. Most blocks are IP reputation or a mismatched clock, not fingerprint. |
-| FPJS `tampering: true` | Cross-OS persona on a mismatched host, or per-seed noise unmasked — run on a matching-OS host; `--fingerprint-noise=false` is the default. |
+| FPJS `tampering: true` | Cross-OS persona on a mismatched host — run on a matching-OS host. Per-profile render noise is **on** by default (deterministic per profile; opt out with `--fingerprint-noise=false`). |
 | "Windows persona but missing fonts" | Supply real `C:\Windows\Fonts\*.ttf` (see [fonts](#fonts)) or set `CAPIUM_SUPPRESS_FONT_WARNING=1`. |
 | `os_mismatch: true` | A network/transport signal (genuine Chrome shows it too behind some proxies) — a routing concern, not the browser. |
 | Headed browser won't start on a server | Run under `Xvfb` and export `DISPLAY=:99`. |

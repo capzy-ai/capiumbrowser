@@ -163,6 +163,29 @@ async def _require_mobile_engine_async(context, mobile_device=None, seed=0, plat
         await page.close()
 
 
+async def _fit_window_to_screen_async(context):
+    """Fit a headed desktop window to its available screen without emulation."""
+    session = None
+    try:
+        page = context.pages[0] if context.pages else await context.new_page()
+        screen = await page.evaluate("()=>({w:screen.availWidth,h:screen.availHeight})")
+        if not (screen and screen.get("w") and screen.get("h")):
+            return
+        session = await context.new_cdp_session(page)
+        window_id = (await session.send("Browser.getWindowForTarget"))["windowId"]
+        await session.send("Browser.setWindowBounds", {"windowId": window_id, "bounds": {
+            "left": 0, "top": 0, "width": int(screen["w"]),
+            "height": int(screen["h"]), "windowState": "normal"}})
+    except Exception:
+        pass
+    finally:
+        if session is not None:
+            try:
+                await session.detach()
+            except Exception:
+                pass
+
+
 async def launch_persistent_context_async(user_data_dir, seed=None, platform="windows",
                                           headless=False, proxy=None, geoip=None, args=None,
                                           stealth_args=True, timezone=None, locale=None,
@@ -179,7 +202,9 @@ async def launch_persistent_context_async(user_data_dir, seed=None, platform="wi
     key, _ = _license.effective(license_key, license_server)
     binpath = _resolve_binary(binary, key)
     if seed is None:
-        seed = config.new_seed()
+        # Stable per-profile seed from the persistent profile dir -- distinct, consistent
+        # fingerprint per profile so no two profiles collide (see config._profile_seed).
+        seed = config._profile_seed(user_data_dir)
     display = os.environ.get("DISPLAY")
     proxy_kwargs, proxy_args = await _proxy_and_geo_args_async(proxy, binpath, geoip, display)
     launch_args = proxy_args + _build_args(
@@ -220,6 +245,10 @@ async def launch_persistent_context_async(user_data_dir, seed=None, platform="wi
         raise
     _clear_status_file(status_path)
     ctx._capium_seed = seed
+    # Desktop personas: fit to the seed's screen in HEADLESS too (coherent per-seed viewport,
+    # not the tiny startup window). Mobile keeps its device viewport.
+    if not (platform in ("android", "ios") and stealth_args):
+        await _fit_window_to_screen_async(ctx)
     if desktop.normalize_brand(browser_brand) != "chrome":
         ctx = _wrap_close_async(ctx, pw)
         try:
@@ -251,6 +280,8 @@ async def launch_context_async(seed=None, platform="windows", headless=False, ur
         from . import human as _human
         _human.humanize(context, preset=human_preset)
     page = context.pages[0] if context.pages else await context.new_page()
+    if not getattr(browser, "_capium_mobile", False):
+        await _fit_window_to_screen_async(context)
     if url:
         await page.goto(url, wait_until="domcontentloaded", timeout=60000)
     return browser, context, page

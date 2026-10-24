@@ -744,7 +744,7 @@ non-zero if the environment isn't ready. A bare `python -m capiumbrowser` runs `
 | `no license configured` | Set `CAPIUM_LICENSE_KEY`, pass `license_key=…`, or create `~/.capium/license` (`KEY=cap_…`). |
 | `CapiumSeatLimitError` | Free tier is 1 concurrent session — close the other Capium browser (or upgrade the tier). |
 | Still blocked on aggressive sites | Compare a matching persona with stock Chrome through assigned proxies. Check route, timezone, graphics availability and detector fields separately; headed mode under Xvfb also needs a working graphics backend. |
-| FPJS `tampering: true` | Prefer a matching-OS host and keep the default `--fingerprint-noise=false`. The current Linux audit remains flagged even with hardware Vulkan; ML zero alone does not clear tampering or anomaly. See the [audit](../../docs/SDK-GPU-AUDIT.md). |
+| FPJS `tampering: true` | Prefer a matching-OS host. Per-profile render noise is **on** by default (deterministic per profile; opt out with `--fingerprint-noise=false`). The current Linux audit remains flagged even with hardware Vulkan; ML zero alone does not clear tampering or anomaly. See the [audit](../../docs/SDK-GPU-AUDIT.md). |
 | "Windows persona but missing fonts" | Supply real `C:\Windows\Fonts\*.ttf` (see [fonts](#fonts)) or set `CAPIUM_SUPPRESS_FONT_WARNING=1`. |
 | `os_mismatch: true` | A network/transport signal (genuine Chrome shows it too behind some proxies) — a routing concern, not the browser. |
 | Headed browser won't start on a server | Run under `Xvfb` and export `DISPLAY=:99`. |

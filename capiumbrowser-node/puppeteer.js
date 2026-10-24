@@ -246,11 +246,22 @@ async function launch(opts = {}) {
  * Returns the Browser.
  */
 async function launchPersistentContext(userDataDir, opts = {}) {
-  return launch({ ...opts, userDataDir });
+  // Stable per-profile seed from the persistent profile dir so each profile gets a distinct,
+  // consistent fingerprint and no two profiles collide. An explicit opts.seed still wins.
+  if (opts.seed === null || opts.seed === undefined) opts = { ...opts, seed: config.profileSeed(userDataDir) };
+  const browser = await launch({ ...opts, userDataDir });
+  // Desktop personas: fit the window to the seed's screen in HEADLESS too (coherent per-seed
+  // viewport, not the tiny startup window). Mobile keeps its device viewport.
+  if (!browser._capiumMobile) {
+    const page = (await browser.pages())[0] || await browser.newPage();
+    await fitWindow(browser, page);
+  }
+  return browser;
 }
 
 /** Size a modest windowed browser that fits within the seed's spoofed screen. */
 async function fitWindow(browser, page) {
+  let cdp;
   try {
     const scr = await page.evaluate(() => ({ w: screen.availWidth, h: screen.availHeight }));
     if (!scr || !scr.w || !scr.h) return;
@@ -262,7 +273,7 @@ async function fitWindow(browser, page) {
     const h = ah;
     const left = 0;
     const top = 0;
-    const cdp = await page.createCDPSession();
+    cdp = await page.createCDPSession();
     const { targetInfo } = await cdp.send('Target.getTargetInfo');
     const { windowId } = await cdp.send('Browser.getWindowForTarget',
       { targetId: targetInfo.targetId });
@@ -270,8 +281,9 @@ async function fitWindow(browser, page) {
       windowId,
       bounds: { left, top, width: w, height: h, windowState: 'normal' },
     });
-    await cdp.detach();
-  } catch {}
+  } catch {} finally {
+    if (cdp) await cdp.detach().catch(() => {});
+  }
 }
 
 /**
@@ -287,7 +299,7 @@ async function launchContext(opts = {}) {
   const pages = await browser.pages();
   const page = pages[0] || (await browser.newPage());
   if (humanize) human.humanize(page, humanPreset);
-  if (!headless && !browser._capiumMobile) await fitWindow(browser, page);
+  if (!browser._capiumMobile) await fitWindow(browser, page); // per-seed screen fit (headed + headless)
   if (url) await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   return { browser, page };
 }
