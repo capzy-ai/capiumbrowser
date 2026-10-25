@@ -84,7 +84,7 @@ async function engineProbe(expected) {
       gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) === 'Apple GPU';
   }
   const match = navigator.userAgent.match(/Chrome\/(\d+)\.0\.0\.0 Mobile Safari\//);
-  if (!expected || navigator.platform !== 'Linux armv81' || !match ||
+  if (!expected || navigator.platform !== 'Linux armv8l' || !match ||
     !navigator.userAgent.includes('(Linux; Android 10; K)') ||
     navigator.userAgent.includes('Version/4.0') || !navigator.userAgentData) return false;
   const ch = await navigator.userAgentData.getHighEntropyValues([

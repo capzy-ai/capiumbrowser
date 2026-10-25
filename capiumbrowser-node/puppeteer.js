@@ -31,7 +31,7 @@ const human = require('./lib/human');
 const license = require('./lib/license');
 const readiness = require('./lib/license-readiness');
 const { CapiumError, translateLaunchError, readLaunchStatus } = require('./lib/errors');
-const { proxyAndGeoArgs, buildArgs, newStatusFile, clearStatusFile } =
+const { proxyAndGeoArgs, buildArgs, newStatusFile, clearStatusFile, windowBoundsForSeed } =
   require('./lib/launch-common');
 
 function requireDriver() {
@@ -267,12 +267,10 @@ async function fitWindow(browser, page) {
     if (!scr || !scr.w || !scr.h) return;
     const aw = Math.trunc(scr.w);
     const ah = Math.trunc(scr.h);
-    // Size the window to the FULL per-seed screen (match python _fit_window_to_screen) so
-    // screen ~= viewport -- avoids the browserscan "screen != viewport" VM tell. NOT a forced 1440x900.
-    const w = aw;
-    const h = ah;
-    const left = 0;
-    const top = 0;
+    // Per-seed geometry within the seed's screen: maximized-like for most seeds,
+    // realistically windowed for the rest (match python _window_bounds_for_seed).
+    const seed = (browser && browser._capiumSeed) || 0;
+    const { left, top, width: w, height: h } = windowBoundsForSeed(seed, aw, ah);
     cdp = await page.createCDPSession();
     const { targetInfo } = await cdp.send('Target.getTargetInfo');
     const { windowId } = await cdp.send('Browser.getWindowForTarget',

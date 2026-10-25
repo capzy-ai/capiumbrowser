@@ -27,7 +27,7 @@ const human = require('./lib/human');
 const license = require('./lib/license');
 const readiness = require('./lib/license-readiness');
 const { CapiumError, translateLaunchError, readLaunchStatus } = require('./lib/errors');
-const { proxyAndGeoArgs, buildArgs, newStatusFile, clearStatusFile } =
+const { proxyAndGeoArgs, buildArgs, newStatusFile, clearStatusFile, windowBoundsForSeed } =
   require('./lib/launch-common');
 
 function requireDriver() {
@@ -161,9 +161,9 @@ function applyViewportDefaults(browser, mobileSeed = null, mobileDevice = null, 
  *
  * seed/platform : identity. stealthArgs: false drops the default fingerprint flags.
  * proxy         : "http://user:pass@host:port" | "socks5://host:port" | {server, username, ...}.
- * geoip         : geo coherence, resolved inside the binary. null (default) = OFF: no lookup
- *                 runs, even with a proxy. true = ON: pins timezone/geo/WebRTC/language to the
- *                 egress (proxy exit, or the host IP if proxyless). false = explicit opt-out.
+ * geoip         : geo coherence, resolved inside the binary. null (default) = ON whenever a
+ *                 proxy is set (pins timezone/geo/WebRTC/language to the exit), OFF otherwise.
+ *                 true = ON even proxyless (host IP). false = explicit opt-out.
  * timezone/locale: explicit override (IANA tz + BCP-47 locale; in-binary spoof).
  * licenseKey/licenseServer: pass the license programmatically (else read from
  *                 CAPIUM_LICENSE_KEY / ~/.capium/license). The binary self-licenses; the key
@@ -298,12 +298,11 @@ async function fitWindow(browser, context, page) {
     if (!scr || !scr.w || !scr.h) return;
     const aw = Math.trunc(scr.w);
     const ah = Math.trunc(scr.h);
-    // Size the window to the FULL per-seed screen (match python _fit_window_to_screen) so
-    // screen ~= viewport -- avoids the browserscan "screen != viewport" VM tell. NOT a forced 1440x900.
-    const w = aw;
-    const h = ah;
-    const left = 0;
-    const top = 0;
+    // Per-seed geometry within the seed's screen: maximized-like for most seeds,
+    // realistically windowed for the rest (match python _window_bounds_for_seed).
+    const seed = (context && context._capiumSeed) ||
+                 (browser && browser._capiumSeed) || 0;
+    const { left, top, width: w, height: h } = windowBoundsForSeed(seed, aw, ah);
     pcdp = await context.newCDPSession(page);
     const { targetInfo } = await pcdp.send('Target.getTargetInfo');
     // Persistent contexts may have no Browser handle; their page session still

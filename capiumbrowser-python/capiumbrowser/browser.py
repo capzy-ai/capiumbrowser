@@ -90,19 +90,22 @@ def _proxy_and_geo_args(spec, binpath, geoip_on, display):
     would otherwise add up to 2.5s to every proxied launch. When it does run it resolves the
     egress IP (proxy exit, else the host's real public IP) and pins WebRTC / timezone /
     geolocation / language -- so the SDK adds no probe of its own. geoip_on is tri-state:
-      * None  -> default: add no flag, so NO geo lookup runs (no launch latency) even with a
-                 proxy. Pass geoip=True to opt into proxy-exit coherence.
+      * None  -> default: ON whenever a proxy is set, OFF otherwise. An uncorrected host
+                 timezone under a proxied identity (UTC on a server, or the operator's home
+                 zone against a foreign exit) is a far stronger detection signal than the
+                 one-off launch-latency cost of the lookup. Pass geoip=False to opt out.
       * True  -> ON with --geoip (resolves the egress -- proxy exit, or the host IP if proxyless).
       * False -> OFF with --geoip=false, which the binary honors FIRST (explicit opt-out).
     Returns (proxy_kwargs, [flags]).
     """
     proxy_kwargs, out = _proxy.resolve_proxy_config(spec)
     out = list(out)
+    explicit_off = geoip_on is False
     if geoip_on is None:
-        pass
-    elif geoip_on:
+        geoip_on = bool(spec)
+    if geoip_on:
         out.append("--geoip")
-    else:
+    elif explicit_off:
         out.append("--geoip=false")
     return proxy_kwargs, out
 
@@ -163,14 +166,34 @@ def fit_window(browser, context, page):
         pass
 
 
+def _window_bounds_for_seed(seed, aw, ah):
+    """Deterministic per-seed window geometry inside the seed's available screen area.
+
+    Every profile previously got the identical maximized-like window (exactly availWidth x
+    availHeight at 0,0), so all profiles sharing a pool screen were geometry-identical -- a
+    clusterable signature. Real users are a mix: most keep the browser maximized, a minority
+    run a windowed browser at an arbitrary size/position. Mirror that mix deterministically
+    per seed (the geometry is part of the profile's stable identity, like its screen)."""
+    import hashlib
+    d = hashlib.sha256(b"capium-window:%d" % int(seed)).digest()
+    if d[0] % 10 < 6:  # most seeds: maximized-like (previous behavior)
+        return 0, 0, aw, ah
+    w = max(800, int(aw * (0.78 + (d[1] / 255.0) * 0.16)))   # 78-94% of avail width
+    h = max(600, int(ah * (0.80 + (d[2] / 255.0) * 0.15)))   # 80-95% of avail height
+    left = (aw - w) * d[3] // 255
+    top = (ah - h) * d[4] // 255
+    return int(left), int(top), int(w), int(h)
+
+
 def _fit_window_to_screen(context):
     """Size the window to the seed's (coherent, per-seed) spoofed screen so viewport ~= screen.
 
     With screen=None (the default), each persona uses its device-pool screen/dpr. Here we size the
-    window to that screen's available area (a maximized-like window), via the page's CDP session
-    (works for persistent contexts, which have no browser() object). This keeps screen~=viewport in
-    headless/container (avoids the browserscan 'screen != viewport' VM tell) AND stays coherent in
-    headed (Chrome clamps to the real display -> a normal viewport<screen window). Best-effort."""
+    window within that screen's available area -- maximized-like for most seeds, realistically
+    windowed for the rest (see _window_bounds_for_seed) -- via the page's CDP session
+    (works for persistent contexts, which have no browser() object). This keeps viewport<=screen
+    coherent in headless/container (avoids the browserscan 'screen != viewport' VM tell) AND stays
+    coherent in headed (Chrome clamps to the real display). Best-effort."""
     s = None
     try:
         page = context.pages[0] if context.pages else None
@@ -180,10 +203,12 @@ def _fit_window_to_screen(context):
         if not (scr and scr.get("w") and scr.get("h")):
             return
         aw, ah = int(scr["w"]), int(scr["h"])
+        left, top, w, h = _window_bounds_for_seed(
+            getattr(context, "_capium_seed", 0) or 0, aw, ah)
         s = context.new_cdp_session(page)
         wid = s.send("Browser.getWindowForTarget")["windowId"]
         s.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
-            "left": 0, "top": 0, "width": aw, "height": ah, "windowState": "normal"}})
+            "left": left, "top": top, "width": w, "height": h, "windowState": "normal"}})
     except Exception:
         pass
     finally:
@@ -470,6 +495,7 @@ def launch_context(seed=None, platform="windows", headless=False, url=None,
         _human.humanize(context, preset=human_preset)
     page = context.pages[0] if context.pages else context.new_page()
     if not getattr(browser, "_capium_mobile", False):
+        context._capium_seed = getattr(browser, "_capium_seed", 0)
         if headless:
             _fit_window_to_screen(context)   # per-seed screen fit (coherent viewport, not the tiny startup window)
         else:

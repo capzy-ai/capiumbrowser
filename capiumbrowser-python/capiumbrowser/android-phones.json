@@ -2,9 +2,9 @@
   "schema_version": 2,
   "minimum_release_year": 2022,
   "browser": "chrome",
-  "status": "experimental-emulation",
-  "gpu_policy": "host",
-  "hardware_policy": "host",
+  "status": "catalog-emulation",
+  "gpu_policy": "catalog",
+  "hardware_policy": "catalog",
   "physical_device_validation": "pending",
   "default_profile_ids": [
     "pixel-7",
@@ -12,6 +12,20 @@
     "pixel-8-pro",
     "pixel-8a",
     "pixel-9"
+  ],
+  "font_core": [
+    "Roboto",
+    "Noto Sans",
+    "Noto Serif",
+    "Noto Sans Mono",
+    "Noto Color Emoji",
+    "Noto Sans JP",
+    "Noto Sans KR",
+    "Noto Sans SC",
+    "Noto Sans TC",
+    "Noto Naskh Arabic",
+    "Noto Sans Devanagari",
+    "Noto Sans Thai"
   ],
   "sources": [
     "https://support.google.com/pixelphone/answer/7158570?hl=en",
@@ -27,7 +41,12 @@
       "platform_version": "13",
       "width": 412,
       "height": 915,
-      "dpr": 2.625
+      "dpr": 2.625,
+      "soc": "Tensor G2",
+      "cores": 8,
+      "memory_gb": 8,
+      "gpu_vendor": "Google Inc. (ARM)",
+      "gpu_renderer": "ANGLE (ARM, Mali-G710, OpenGL ES 3.2)"
     },
     {
       "id": "pixel-8",
@@ -36,7 +55,12 @@
       "platform_version": "14",
       "width": 412,
       "height": 915,
-      "dpr": 2.625
+      "dpr": 2.625,
+      "soc": "Tensor G3",
+      "cores": 9,
+      "memory_gb": 8,
+      "gpu_vendor": "Google Inc. (ARM)",
+      "gpu_renderer": "ANGLE (ARM, Mali-G715, OpenGL ES 3.2)"
     },
     {
       "id": "pixel-8-pro",
@@ -45,7 +69,12 @@
       "platform_version": "14",
       "width": 448,
       "height": 997,
-      "dpr": 3.0
+      "dpr": 3.0,
+      "soc": "Tensor G3",
+      "cores": 9,
+      "memory_gb": 12,
+      "gpu_vendor": "Google Inc. (ARM)",
+      "gpu_renderer": "ANGLE (ARM, Mali-G715, OpenGL ES 3.2)"
     },
     {
       "id": "pixel-8a",
@@ -54,7 +83,12 @@
       "platform_version": "14",
       "width": 412,
       "height": 915,
-      "dpr": 2.625
+      "dpr": 2.625,
+      "soc": "Tensor G3",
+      "cores": 9,
+      "memory_gb": 8,
+      "gpu_vendor": "Google Inc. (ARM)",
+      "gpu_renderer": "ANGLE (ARM, Mali-G715, OpenGL ES 3.2)"
     },
     {
       "id": "pixel-9",
@@ -63,7 +97,12 @@
       "platform_version": "14",
       "width": 412,
       "height": 924,
-      "dpr": 2.625
+      "dpr": 2.625,
+      "soc": "Tensor G4",
+      "cores": 8,
+      "memory_gb": 12,
+      "gpu_vendor": "Google Inc. (ARM)",
+      "gpu_renderer": "ANGLE (ARM, Mali-G715, OpenGL ES 3.2)"
     },
     {
       "id": "samsung-galaxy-a55",
@@ -74,6 +113,11 @@
       "width": 360,
       "height": 800,
       "dpr": 2.25,
+      "soc": "Exynos 1480",
+      "cores": 8,
+      "memory_gb": 8,
+      "gpu_vendor": "Google Inc. (Samsung Electronics Co., Ltd.)",
+      "gpu_renderer": "ANGLE (Samsung Electronics Co., Ltd., Xclipse 530, OpenGL ES 3.2)",
       "geometry_status": "devtools-emulation-only",
       "geometry_note": "These Chromium preset dimensions/DPR do not directly map to the published 1080x2340 panel; physical Chrome capture required."
     },
@@ -84,7 +128,12 @@
       "platform_version": "14",
       "width": 427,
       "height": 952,
-      "dpr": 3.0
+      "dpr": 3.0,
+      "soc": "Tensor G4",
+      "cores": 8,
+      "memory_gb": 16,
+      "gpu_vendor": "Google Inc. (ARM)",
+      "gpu_renderer": "ANGLE (ARM, Mali-G715, OpenGL ES 3.2)"
     },
     {
       "id": "pixel-9-pro-xl",
@@ -93,7 +142,12 @@
       "platform_version": "14",
       "width": 448,
       "height": 997,
-      "dpr": 3.0
+      "dpr": 3.0,
+      "soc": "Tensor G4",
+      "cores": 8,
+      "memory_gb": 16,
+      "gpu_vendor": "Google Inc. (ARM)",
+      "gpu_renderer": "ANGLE (ARM, Mali-G715, OpenGL ES 3.2)"
     }
   ]
 }

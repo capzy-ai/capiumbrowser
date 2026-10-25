@@ -345,7 +345,7 @@ and `launch_persistent_context` forward everything to `launch`.
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `proxy` | `str` \| `dict` \| `"env"`/`True` \| `None` | `None` | HTTP/HTTPS/SOCKS5 URL with inline creds, a `{"server","username","password"}` dict, `"env"`/`True` (reads `CAPIUM_PROXY`), or `None`/`"none"`/`""`. |
-| `geoip` | `bool` \| `None` | `None` | Geo coherence, resolved inside the binary. **`None` (default) — OFF**: no lookup runs, even with a proxy (a proxy alone doesn't trigger it, so proxied launches aren't slowed). **`True`** — ON: pins timezone/geo/WebRTC/`navigator.languages` to the egress (proxy exit, or the host IP if proxyless). **`False`** — explicit opt-out. No SDK-side probe. |
+| `geoip` | `bool` \| `None` | `None` | Geo coherence, resolved inside the binary. **`None` (default) — ON whenever a proxy is set, OFF otherwise**: an uncorrected host timezone under a proxied identity (UTC on a server) is a far stronger detection signal than the lookup's one-off launch latency. **`True`** — ON even proxyless (pins timezone/geo/WebRTC/`navigator.languages` to the host IP). **`False`** — explicit opt-out. No SDK-side probe. |
 | `timezone` | `str` \| `None` | `None` | IANA tz (e.g. `"America/New_York"`) → `--timezone`. **Overrides** `geoip`. |
 | `locale` | `str` \| `None` | `None` | BCP-47 (e.g. `"en-US"`) → `--lang` + `--accept-lang`. **Overrides** `geoip`. |
 

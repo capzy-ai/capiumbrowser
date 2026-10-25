@@ -15,13 +15,14 @@ const proxy = require('./proxy');
 /**
  * Build [--proxy-server, --geoip] flags for geo coherence.
  *
- * The binary's CapiumGeoipResolver runs at PreBrowserStart ONLY when --geoip is present. A
- * proxy on its own does NOT trigger it: the lookup is a synchronous, blocking round-trip that
- * would otherwise add up to 2.5s to every proxied launch. When it does run it resolves the
- * egress IP (proxy exit, else the host's real public IP) and pins WebRTC / timezone /
- * geolocation / language -- so the SDK adds no probe of its own. geoipOn is tri-state:
- *   * null  -> default: add no flag, so NO geo lookup runs (no launch latency) even with a
- *              proxy. Pass geoip: true to opt into proxy-exit coherence.
+ * The binary's CapiumGeoipResolver runs at PreBrowserStart ONLY when --geoip is present.
+ * When it runs it resolves the egress IP (proxy exit, else the host's real public IP) and
+ * pins WebRTC / timezone / geolocation / language -- so the SDK adds no probe of its own.
+ * geoipOn is tri-state:
+ *   * null  -> default: ON whenever a proxy is set, OFF otherwise. An uncorrected host
+ *              timezone under a proxied identity (UTC on a server, or the operator's home
+ *              zone against a foreign exit) is a far stronger detection signal than the
+ *              lookup's one-off launch latency. Pass geoip: false to opt out.
  *   * true  -> ON with --geoip (resolves the egress -- proxy exit, or the host IP if proxyless).
  *   * false -> OFF with --geoip=false, which the binary honors FIRST (explicit opt-out).
  * Returns {launchOptions, args}.
@@ -29,11 +30,11 @@ const proxy = require('./proxy');
 function proxyAndGeoArgs(spec, geoipOn) {
   const { launchOptions, args } = proxy.resolveProxyConfig(spec);
   const out = [...args];
-  if (geoipOn === null || geoipOn === undefined) {
-    // default: no flag, no lookup
-  } else if (geoipOn) {
+  const explicitOff = geoipOn === false;
+  if (geoipOn === null || geoipOn === undefined) geoipOn = Boolean(spec);
+  if (geoipOn) {
     out.push('--geoip');
-  } else {
+  } else if (explicitOff) {
     out.push('--geoip=false');
   }
   return { launchOptions, args: out };
@@ -87,4 +88,25 @@ function clearStatusFile(p) {
   } catch {}
 }
 
-module.exports = { proxyAndGeoArgs, buildArgs, newStatusFile, clearStatusFile };
+/**
+ * Deterministic per-seed window geometry inside the seed's available screen area.
+ *
+ * Every profile previously got the identical maximized-like window (exactly availWidth x
+ * availHeight at 0,0), so all profiles sharing a pool screen were geometry-identical -- a
+ * clusterable signature. Real users are a mix: most keep the browser maximized, a minority
+ * run a windowed browser at an arbitrary size/position. Mirror that mix deterministically
+ * per seed (the geometry is part of the profile's stable identity, like its screen).
+ * Matches python browser._window_bounds_for_seed.
+ */
+function windowBoundsForSeed(seed, aw, ah) {
+  const d = crypto.createHash('sha256')
+    .update(`capium-window:${Math.trunc(seed) || 0}`).digest();
+  if (d[0] % 10 < 6) return { left: 0, top: 0, width: aw, height: ah };
+  const w = Math.max(800, Math.trunc(aw * (0.78 + (d[1] / 255) * 0.16)));
+  const h = Math.max(600, Math.trunc(ah * (0.80 + (d[2] / 255) * 0.15)));
+  const left = Math.trunc(((aw - w) * d[3]) / 255);
+  const top = Math.trunc(((ah - h) * d[4]) / 255);
+  return { left, top, width: w, height: h };
+}
+
+module.exports = { proxyAndGeoArgs, buildArgs, newStatusFile, clearStatusFile, windowBoundsForSeed };

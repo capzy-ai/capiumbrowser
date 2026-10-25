@@ -15,7 +15,7 @@ _IOS_PROFILES = {profile["id"]: profile for profile in _IOS_CATALOG["profiles"]}
 # No network request is sent. A secure origin exposes native UA Client Hints.
 ENGINE_PROBE = r"""async expected => {
     const match = navigator.userAgent.match(/Chrome\/(\d+)\.0\.0\.0 Mobile Safari\//);
-    if (!expected || navigator.platform !== 'Linux armv81' || !match ||
+    if (!expected || navigator.platform !== 'Linux armv8l' || !match ||
         !navigator.userAgent.includes('(Linux; Android 10; K)') ||
         navigator.userAgent.includes('Version/4.0') || !navigator.userAgentData) return false;
     const ch = await navigator.userAgentData.getHighEntropyValues([

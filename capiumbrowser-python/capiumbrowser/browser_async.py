@@ -33,17 +33,18 @@ async def _license_preflight_async(license_key, license_server, do_preflight):
 async def _proxy_and_geo_args_async(spec, binpath, geoip_on, display):
     """Return (proxy_kwargs, chrome_args). proxy_kwargs for Playwright auth; chrome_args for
     native --proxy-server + geo flags. The binary's CapiumGeoipResolver runs at PreBrowserStart
-    ONLY when --geoip is present (a proxy alone does NOT trigger it -- the lookup is a blocking
-    round-trip we don't pay unasked). geoip_on is tri-state: None = default OFF (no lookup, no
-    launch latency, even with a proxy), True = ON (--geoip), False = explicit opt-out
-    (--geoip=false, honored first)."""
+    ONLY when --geoip is present. geoip_on is tri-state: None = default ON whenever a proxy is
+    set and OFF otherwise (an uncorrected host timezone under a proxied identity -- UTC on a
+    server -- is a far stronger detection signal than the lookup's launch latency), True = ON
+    (--geoip), False = explicit opt-out (--geoip=false, honored first)."""
     proxy_kwargs, out = _proxy.resolve_proxy_config(spec)
     out = list(out)
+    explicit_off = geoip_on is False
     if geoip_on is None:
-        pass
-    elif geoip_on:
+        geoip_on = bool(spec)
+    if geoip_on:
         out.append("--geoip")
-    else:
+    elif explicit_off:
         out.append("--geoip=false")
     return proxy_kwargs, out
 
@@ -164,18 +165,22 @@ async def _require_mobile_engine_async(context, mobile_device=None, seed=0, plat
 
 
 async def _fit_window_to_screen_async(context):
-    """Fit a headed desktop window to its available screen without emulation."""
+    """Fit a desktop window within its available screen (per-seed geometry, no emulation)."""
+    from .browser import _window_bounds_for_seed
     session = None
     try:
         page = context.pages[0] if context.pages else await context.new_page()
         screen = await page.evaluate("()=>({w:screen.availWidth,h:screen.availHeight})")
         if not (screen and screen.get("w") and screen.get("h")):
             return
+        left, top, w, h = _window_bounds_for_seed(
+            getattr(context, "_capium_seed", 0) or 0,
+            int(screen["w"]), int(screen["h"]))
         session = await context.new_cdp_session(page)
         window_id = (await session.send("Browser.getWindowForTarget"))["windowId"]
         await session.send("Browser.setWindowBounds", {"windowId": window_id, "bounds": {
-            "left": 0, "top": 0, "width": int(screen["w"]),
-            "height": int(screen["h"]), "windowState": "normal"}})
+            "left": left, "top": top, "width": w,
+            "height": h, "windowState": "normal"}})
     except Exception:
         pass
     finally:
@@ -281,6 +286,7 @@ async def launch_context_async(seed=None, platform="windows", headless=False, ur
         _human.humanize(context, preset=human_preset)
     page = context.pages[0] if context.pages else await context.new_page()
     if not getattr(browser, "_capium_mobile", False):
+        context._capium_seed = getattr(browser, "_capium_seed", 0)
         await _fit_window_to_screen_async(context)
     if url:
         await page.goto(url, wait_until="domcontentloaded", timeout=60000)
