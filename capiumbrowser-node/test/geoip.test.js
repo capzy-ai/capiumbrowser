@@ -1,7 +1,10 @@
 // Unit tests for the geoip flag tri-state (lib/launch-common.proxyAndGeoArgs).
 //
-// Regression for the 2026-09 contract change: a proxy ALONE must NOT enable geoip (that added
-// a blocking egress round-trip to every proxied launch). --geoip is the sole trigger now.
+// Contract as of 1.3.1: null/undefined (the default) enables --geoip WHENEVER A PROXY IS SET
+// and stays off otherwise. An uncorrected host timezone under a proxied identity (UTC on a
+// server against a residential exit) is a far stronger detection signal than the lookup's
+// one-off launch latency, which is why the 2026-09 "default always off" contract was reversed.
+// Explicit false still opts out with --geoip=false (honored first by the binary).
 // Mirrors the Python SDK's tests/test_geoip_flags.py.
 'use strict';
 
@@ -12,19 +15,23 @@ const { proxyAndGeoArgs } = require('../lib/launch-common');
 
 const flags = (spec, geoip) => proxyAndGeoArgs(spec, geoip).args;
 
-test('default null adds no geoip even with proxy', () => {
+test('default null enables geoip with a proxy', () => {
   const out = flags('http://u:p@h:1', null);
   assert.ok(out.some((a) => a.startsWith('--proxy-server=')), 'proxy flag expected');
-  assert.ok(!out.some((a) => a === '--geoip' || a.startsWith('--geoip=')),
-    'a proxy alone must NOT enable geoip (default is OFF)');
+  assert.ok(out.includes('--geoip'),
+    'a proxy must enable geoip by default (exit-coherent timezone/geo/WebRTC)');
+  assert.ok(!out.some((a) => a.startsWith('--geoip=')));
 });
 
 test('true adds --geoip', () => {
   assert.ok(flags('http://u:p@h:1', true).includes('--geoip'));
+  assert.ok(flags(null, true).includes('--geoip'));
 });
 
 test('false adds explicit opt-out', () => {
-  assert.ok(flags('http://u:p@h:1', false).includes('--geoip=false'));
+  const out = flags('http://u:p@h:1', false);
+  assert.ok(out.includes('--geoip=false'));
+  assert.ok(!out.includes('--geoip'));
 });
 
 test('no proxy, no geoip by default', () => {
@@ -33,5 +40,5 @@ test('no proxy, no geoip by default', () => {
 
 test('undefined behaves like null (JS callers omit the option)', () => {
   assert.deepEqual(flags(null, undefined), []);
-  assert.ok(!flags('http://u:p@h:1', undefined).some((a) => a.startsWith('--geoip')));
+  assert.ok(flags('http://u:p@h:1', undefined).includes('--geoip'));
 });
