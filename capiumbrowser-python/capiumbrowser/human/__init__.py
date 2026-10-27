@@ -16,11 +16,12 @@ Two ways to use it:
        page.human_click("#login"); page.human_type("#user", "alice")
 """
 from . import behavior
-from .behavior import move, click, type_text, scroll, dwell
+from .behavior import move, click, type_text, scroll, dwell, hold
 
 
 def humanize(target, preset="default"):
-    """Attach page.human_move / human_click / human_type / human_scroll / human_dwell.
+    """Attach page.human_move / human_click / human_type / human_scroll / human_dwell /
+    human_hold.
 
     target may be a Page or a BrowserContext (all current + future pages are patched).
     Returns target (chainable). Does NOT override page.click/type so existing code is safe;
@@ -34,6 +35,7 @@ def humanize(target, preset="default"):
         page.human_click = lambda sel, p=preset: click(page, sel, p)
         page.human_type = lambda sel, text, p=preset: type_text(page, sel, text, p)
         page.human_scroll = lambda dy, p=preset: scroll(page, dy, p)
+        page.human_hold = lambda sel, seconds, p=preset: hold(page, sel, seconds, p)
         page.human_dwell = dwell
 
     # context: patch existing + hook new pages
@@ -46,4 +48,4 @@ def humanize(target, preset="default"):
     return target
 
 
-__all__ = ["humanize", "move", "click", "type_text", "scroll", "dwell", "behavior"]
+__all__ = ["humanize", "move", "click", "type_text", "scroll", "dwell", "hold", "behavior"]
