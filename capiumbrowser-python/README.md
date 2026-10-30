@@ -438,7 +438,7 @@ Full runnable version (personas, persistent profiles, a fleet, proxy+geo, full c
 
 ## Browser and mobile profiles
 
-CapiumBrowser 1.2.1 supports desktop Chrome, Edge, Opera and Vivaldi identity
+CapiumBrowser supports desktop Chrome, Edge, Opera and Vivaldi identity
 profiles, plus opt-in Android and iPhone profiles on Windows x64, macOS arm64
 and Linux x64. Chrome remains the default.
 
@@ -701,8 +701,10 @@ launches **headed**, which reads cleaner than headless.
 | Linux arm64 | `linux-arm64` | Declared in the manifest; not yet published or covered by the three-host audit |
 
 The SDK auto-detects your host and downloads the matching tag; macOS Intel and Windows ARM are **not**
-published and raise a clear error. The **1.2.1** manifest selects **Chromium 155.0.8059.39, revision 2** on the three
-supported hosts. Browser downloads are available with a valid license. Linux arm64 remains unpublished.
+published and raise a clear error.
+<!-- capium:release-line -->
+The **1.3.3** release ships Chromium **156.0.8078.48** on Windows x64, macOS arm64 and **156.0.8078.47** on Linux x64 (packaging revision **4**). Browser downloads require a valid license. Linux arm64 remains declared but unpublished.
+<!-- /capium:release-line -->
 
 ---
 
