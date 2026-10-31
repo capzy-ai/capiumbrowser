@@ -162,12 +162,12 @@ header you can verify against the bytes.
 <!-- capium:versions-table -->
 | `<tag>` | `<version>` | `<revision>` |
 | --- | --- | --- |
-| `windows-x64` | `156.0.8078.48` | `4` |
-| `macos-arm64` | `156.0.8078.48` | `4` |
-| `linux-x64` | `156.0.8078.47` | `4` |
+| `windows-x64` | `156.0.8078.48` | `5` |
+| `macos-arm64` | `156.0.8078.48` | `5` |
+| `linux-x64` | `156.0.8078.47` | `5` |
 | `linux-arm64` | *(coming soon)* | |
 
-> `<version>` is the compiled and reported browser version. Reported versions: `156.0.8078.48` (windows-x64, macos-arm64); `156.0.8078.47` (linux-x64) (all built from Chromium engine `156.0.8078.47`), packaging revision `4`, served from `chromium-v<version>.<revision>/`. Linux arm64 is not yet published.
+> `<version>` is the compiled and reported browser version. Reported versions: `156.0.8078.48` (windows-x64, macos-arm64); `156.0.8078.47` (linux-x64) (all built from Chromium engine `156.0.8078.47`), packaging revision `5`, served from `chromium-v<version>.<revision>/`. Linux arm64 is not yet published.
 <!-- /capium:versions-table -->
 
 The current stable version per platform is also in each [release's checksums](https://github.com/capzy-ai/capiumbrowser/releases).
@@ -942,7 +942,7 @@ launches **headed**, which reads cleaner than headless.
 The SDK auto-detects your host and downloads the matching tag; macOS Intel and Windows ARM are **not**
 published and raise a clear error.
 <!-- capium:release-line -->
-The **1.3.3** release ships Chromium **156.0.8078.48** on Windows x64, macOS arm64 and **156.0.8078.47** on Linux x64 (packaging revision **4**). Browser downloads require a valid license. Linux arm64 remains declared but unpublished.
+The **1.3.4** release ships Chromium **156.0.8078.48** on Windows x64, macOS arm64 and **156.0.8078.47** on Linux x64 (packaging revision **5**). Browser downloads require a valid license. Linux arm64 remains declared but unpublished.
 <!-- /capium:release-line -->
 
 ---
