@@ -54,7 +54,10 @@ test('puppeteer buildLaunchOptions: puppeteer-shaped defaults', async () => {
   });
   assert.equal(o.executablePath, fakeBin);
   assert.equal(o.defaultViewport, null); // page tracks the real window
-  assert.deepEqual(o.ignoreDefaultArgs, ['--enable-automation', '--enable-unsafe-swiftshader']);
+  assert.deepEqual(o.ignoreDefaultArgs, [
+    '--enable-automation', '--enable-unsafe-swiftshader',
+    '--disable-popup-blocking', '--disable-ipc-flooding-protection',
+  ]);
   assert.ok(o.args.includes('--fingerprint=7'));
 });
 

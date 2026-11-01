@@ -495,7 +495,7 @@ launch(seed=200123, args=[
 | `--fingerprint-hardware-concurrency=<n>` | `navigator.hardwareConcurrency` (CPU cores). |
 | `--fingerprint-screen-width=<n>` / `--fingerprint-screen-height=<n>` | `screen.width` / `screen.height`. |
 | `--fingerprint-device-scale-factor=<f>` | `devicePixelRatio`. |
-| `--fingerprint-storage-quota=<GB>` | `navigator.storage.estimate().quota` in **gigabytes** (also affects incognito-from-quota checks). Auto-set per-seed by the SDK (128–576 GB) so the real host/container disk never leaks — including on Windows, where no wrapper runs. |
+| `--fingerprint-storage-quota=<GB>` | `navigator.storage.estimate().quota` in **gigabytes** (also affects incognito-from-quota checks). Auto-set to 10 GB by the SDK (stock-Chrome-coherent) so the real host/container disk never leaks — including on Windows, where no wrapper runs. |
 
 **Rendering & noise**
 
@@ -703,7 +703,7 @@ launches **headed**, which reads cleaner than headless.
 The SDK auto-detects your host and downloads the matching tag; macOS Intel and Windows ARM are **not**
 published and raise a clear error.
 <!-- capium:release-line -->
-The **1.3.4** release ships Chromium **156.0.8078.48** on Windows x64, macOS arm64 and **156.0.8078.47** on Linux x64 (packaging revision **5**). Browser downloads require a valid license. Linux arm64 remains declared but unpublished.
+The **1.3.5** release ships Chromium **156.0.8078.48** on Windows x64, macOS arm64 and **156.0.8078.47** on Linux x64 (packaging revision **6**). Browser downloads require a valid license. Linux arm64 remains declared but unpublished.
 <!-- /capium:release-line -->
 
 ---

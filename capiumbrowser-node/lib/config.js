@@ -22,7 +22,17 @@ const path = require('path');
 //                                 The historical 153 package lacked its ICD manifest;
 //                                 the 155 packager includes it. Validate drawing in
 //                                 the deployed environment for either backend.
-const IGNORE_DEFAULT_ARGS = ['--enable-automation', '--enable-unsafe-swiftshader'];
+//   --disable-popup-blocking / --disable-ipc-flooding-protection : the drivers
+//                                 inject these, but a normal user session leaves
+//                                 popup blocking and IPC flood protection ON.
+//                                 Bot detectors (rebrowser) probe for both, so
+//                                 strip them and keep the browser's real defaults.
+const IGNORE_DEFAULT_ARGS = [
+  '--enable-automation',
+  '--enable-unsafe-swiftshader',
+  '--disable-popup-blocking',
+  '--disable-ipc-flooding-protection',
+];
 
 // The 155 engine selects a seeded screen within these default bounds. The headless
 // window is sized PER SEED after launch (fitWindow -> the seed's screen.availWidth/Height),
@@ -87,12 +97,12 @@ function getDefaultStealthArgs(seed = null, platform = 'windows', screen = null,
     args.push(`--fingerprint=${s}`);
     if (platform) args.push(`--fingerprint-platform=${platform}`);
     // Storage quota: navigator.storage.estimate().quota otherwise reports the real
-    // host disk -- a VM/fingerprint tell (e.g. a 10 GB container), and on Windows it
-    // is UNSPOOFED because no bash wrapper runs there (chrome.exe is launched direct).
-    // Emit the SAME per-seed 128-576 GB SSD-like value the POSIX `capium` wrapper
-    // derives, so the quota is spoofed coherently on EVERY platform. On Linux/macOS the
-    // wrapper sees this flag (HAVE_QUOTA=1) and defers to it rather than adding its own.
-    args.push(`--fingerprint-storage-quota=${128 + (s % 8) * 64}`);
+    // host disk, which leaks disk size and links every profile on one machine (same
+    // disk -> same quota), and on Windows it is UNSPOOFED because no bash wrapper runs
+    // there. Pin a flat 10 GB -- the value stock Chrome reports (verified on real
+    // hardware), and a quota real profiles on a shared disk would agree on. On
+    // Linux/macOS the wrapper sees this flag (HAVE_QUOTA=1) and defers to it.
+    args.push('--fingerprint-storage-quota=10');
   }
   args.push(
     // Allow third-party cookies (reCAPTCHA/login flows need them). capium blocks 3p cookies

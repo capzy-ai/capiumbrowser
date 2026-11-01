@@ -40,6 +40,22 @@ function proxyAndGeoArgs(spec, geoipOn) {
   return { launchOptions, args: out };
 }
 
+// A coherent Accept-Language value. A real localized Chrome exposes the
+// bare-language fallback after a region tag (navigator.languages ==
+// ["de-DE","de"]); a lone region tag is a fingerprint coherence tell. Expand a
+// single "xx-YY" into "xx-YY,xx". A caller value that is already a list
+// (contains a comma) passes through unchanged.
+function acceptLanguageChain(locale) {
+  if (!locale || locale.includes(',')) return locale;
+  const tag = locale.trim();
+  const dash = tag.indexOf('-');
+  if (dash > 0 && dash + 1 < tag.length) {
+    const primary = tag.slice(0, dash);
+    if (primary && primary !== tag) return `${tag},${primary}`;
+  }
+  return tag;
+}
+
 function buildArgs({ seed, platform, stealthArgs, timezone, locale, extensionPaths, extra,
   headless = false, mobileDevice = null, browserBrand = null }) {
   let args = [];
@@ -51,10 +67,17 @@ function buildArgs({ seed, platform, stealthArgs, timezone, locale, extensionPat
       args = args.concat(config.getHeadlessDefaultArgs());
     }
   }
+  // Pin NEW headless explicitly. Chromium removed legacy headless in M128, so
+  // the 156 engine only ever runs new headless; spelling out --headless=new
+  // keeps the launch self-documenting and robust to driver defaults. Skip when
+  // the caller already chose a --headless mode in their own args.
+  if (headless && !(extra || []).some((a) => String(a).startsWith('--headless'))) {
+    args.push('--headless=new');
+  }
   if (timezone) args.push(`--timezone=${timezone}`); // capium in-binary tz spoof
   if (locale) {
     args.push(`--lang=${locale}`);
-    args.push(`--accept-lang=${locale}`);
+    args.push(`--accept-lang=${acceptLanguageChain(locale)}`);
   }
   if (extensionPaths) {
     const paths = Array.isArray(extensionPaths) ? extensionPaths : [extensionPaths];
