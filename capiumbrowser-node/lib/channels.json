@@ -1,30 +1,30 @@
 {
   "_comment": "SINGLE SOURCE OF TRUTH for the current stable Capium browser build per OS/arch. Each OS reaches stable independently -- edit one entry without touching the others. This file ships inside the wheel (the SDK reads it to pick each host's stable build) AND is published to the download server by the release pipeline. `version` is the reported Chromium version (what the browser reports to the customer, names the R2 folder); `engine_version` is the actual built Chromium engine (box_package verifies the binary against it) -- it differs from `version` when a platform reports a spoofed patch (Windows/macOS report .48 on the .47 engine). `revision` is our packaging counter -- the served R2 folder is chromium-v<version>.<revision>/, ALWAYS dotted-suffixed starting at 1. A Chromium version bump resets revision to 1. `published: false` means the tag is declared but no artifact exists yet.",
   "schema": 1,
-  "updated": "2026-10-31",
+  "updated": "2026-11-04",
   "channels": {
     "stable": {
       "windows-x64": {
         "version": "156.0.8078.48",
         "engine_version": "156.0.8078.47",
-        "revision": 5,
-        "sha256": "0951158fd6587f0a74e70a2d5fbf20df42647a67f09cbfb007286f55f1c722de",
+        "revision": 7,
+        "sha256": "4e754a7343f82b0e4abd4b4dfef2d4e9d4ca516938d4c53a777c515467f2a396",
         "published": true,
         "license_status_protocol": 1
       },
       "macos-arm64": {
         "version": "156.0.8078.48",
         "engine_version": "156.0.8078.47",
-        "revision": 5,
-        "sha256": "d7631b5d422656b87928ce9d9e0e3d194a7acac7ac1a548db1793a388745939b",
+        "revision": 7,
+        "sha256": "7f16b1a623896258890449ef18dd1f368b7cd17107f7c829b75a52a393cd81db",
         "published": true,
         "license_status_protocol": 1
       },
       "linux-x64": {
         "version": "156.0.8078.47",
         "engine_version": "156.0.8078.47",
-        "revision": 5,
-        "sha256": "09a4712f53f94bc1be35a7c5554c2a5bfc140358cbd89614e8ebcf22508aa86e",
+        "revision": 12,
+        "sha256": "b192db993db5a56146a95c67aa4d72861062f54059d4081bac3f774e6ed0a61b",
         "published": true,
         "license_status_protocol": 1
       },
