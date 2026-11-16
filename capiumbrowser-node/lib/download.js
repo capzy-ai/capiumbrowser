@@ -204,6 +204,24 @@ function stampVersion(binPath, version) {
 }
 
 /**
+ * Best-effort: does this install carry Chrome's resource payload, or just the launcher? A
+ * truncated extract (launcher present, .pak/ICU missing) still has a matching marker, so the
+ * version check alone would reuse a broken install and Chrome dies with 'side-by-side
+ * configuration is incorrect'. Returns false ONLY when the payload is positively missing; unsure
+ * (unusual layout) -> true, so we never re-download in a loop.
+ */
+function payloadLooksComplete(binPath) {
+  const d = path.dirname(binPath);
+  if (process.platform === 'darwin') return true; // app-bundle layout varies; trust the marker
+  try {
+    if (fs.existsSync(path.join(d, 'icudtl.dat'))) return true;
+    return fs.readdirSync(d).some((f) => f.endsWith('.pak'));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The buildId (`<version>.<N>`) this host SHOULD run, honoring CAPIUM_* env, or
  * null if it can't be determined (CAPIUM_BINARY override / unsupported platform / bad manifest).
  * Lets the launch path detect+reject a stale binary from an earlier install instead of running it.
@@ -317,7 +335,7 @@ async function download(url, headers, dest, version, tag) {
  *     CapiumExpiredError   -- the license was rejected (401/403).
  *     CapiumServerDownError-- the download server was unreachable / 5xx.
  */
-async function ensureBinary({ version = null, licenseKey = null, server = null } = {}) {
+async function ensureBinary({ version = null, licenseKey = null, server = null, force = false } = {}) {
   // An explicit CAPIUM_BINARY path always wins -- it's the caller's choice, no version check.
   if (process.env.CAPIUM_BINARY) return config.findBinary();
 
@@ -349,10 +367,16 @@ async function ensureBinary({ version = null, licenseKey = null, server = null }
   // lives in the canonical root (~/.capium or CAPIUM_HOME). A different build -- or a same-build
   // binary in a LEGACY location -- falls through so we (re)install into ~/.capium, keeping the
   // browser under one folder next to the license.
-  try {
-    const existing = config.findBinary();
-    if (readInstalledVersion(existing) === bid && inRoot(existing, destRoot())) return existing;
-  } catch {}
+  // force (explicit install) always re-downloads. Otherwise reuse only a cached binary that is
+  // this exact build, in the canonical root, AND still has its resource payload -- a truncated
+  // install (launcher only, .pak/ICU gone) must be re-downloaded, not trusted.
+  if (!force) {
+    try {
+      const existing = config.findBinary();
+      if (readInstalledVersion(existing) === bid && inRoot(existing, destRoot())
+          && payloadLooksComplete(existing)) return existing;
+    } catch {}
+  }
 
   let url;
   let headers = null;

@@ -220,7 +220,9 @@ function cmdVersion() {
 async function cmdInstall() {
   const { key } = license.effective();
   console.log('downloading the capium browser binary ...');
-  console.log('installed:', await download.ensureBinary({ licenseKey: key }));
+  // force: true -- `install` always re-downloads + re-extracts, repairing a truncated/partial
+  // install instead of no-opping when the version marker happens to match.
+  console.log('installed:', await download.ensureBinary({ licenseKey: key, force: true }));
   return 0;
 }
 
