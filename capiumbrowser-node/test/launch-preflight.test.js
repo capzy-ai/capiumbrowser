@@ -64,7 +64,10 @@ test('buildArgs: stealth + timezone + locale + extensions + extra, in order', ()
   assert.ok(args.includes('--fingerprint-platform=macos'));
   assert.ok(args.includes('--timezone=Europe/Berlin'));
   assert.ok(args.includes('--lang=de-DE'));
-  assert.ok(args.includes('--accept-lang=de-DE'));
+  // A lone region tag expands to the bare-language fallback for coherence
+  // (navigator.languages == ["de-DE","de"], matching a real localized Chrome).
+  assert.ok(args.includes('--accept-lang=de-DE,de'));
+  assert.ok(args.includes('--fingerprint-accept-lang=de-DE,de'));
   assert.ok(args.includes('--disable-extensions-except=/a/ext1,/b/ext2'));
   assert.ok(args.includes('--load-extension=/a/ext1,/b/ext2'));
   assert.equal(args[args.length - 1], '--custom-flag'); // extras go last (can override)
