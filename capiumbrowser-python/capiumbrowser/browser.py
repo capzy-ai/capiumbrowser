@@ -119,6 +119,24 @@ def _has_screen_override(extra):
     return any(isinstance(a, str) and a.startswith(keys) for a in extra)
 
 
+def _accept_language_chain(locale):
+    """Return a coherent Accept-Language value for a persona locale.
+
+    A real localized Chrome exposes the bare-language fallback after a region
+    tag -- navigator.languages == ["de-DE", "de"] -- so a lone region tag is a
+    fingerprint coherence tell. Expand a single "xx-YY" into "xx-YY,xx". A value
+    that is already a list (contains a comma) is passed through unchanged.
+    """
+    if not locale or "," in locale:
+        return locale
+    tag = locale.strip()
+    if "-" in tag:
+        primary = tag.split("-", 1)[0]
+        if primary and primary != tag:
+            return "%s,%s" % (tag, primary)
+    return tag
+
+
 def _build_args(seed, platform, stealth_args, timezone, locale, extension_paths, extra,
                 headless=False, mobile_device=None, browser_brand=None):
     args = []
@@ -128,11 +146,19 @@ def _build_args(seed, platform, stealth_args, timezone, locale, extension_paths,
         # the caller has not provided screen/window flags.
         if headless and platform not in ("android", "ios") and not _has_screen_override(extra):
             args += config.get_headless_default_args()
+    # Pin NEW headless explicitly. Chromium removed legacy headless in M128, so
+    # the 156 engine only ever runs new headless; spelling out --headless=new
+    # keeps the launch self-documenting and robust to driver defaults. Skip when
+    # the caller already chose a --headless mode in their own args.
+    if headless and not any(str(a).startswith("--headless") for a in (extra or [])):
+        args.append("--headless=new")
     if timezone:
         args.append("--timezone=%s" % timezone)          # capium in-binary tz spoof
     if locale:
         args.append("--lang=%s" % locale)
-        args.append("--accept-lang=%s" % locale)
+        _chain = _accept_language_chain(locale)
+        args.append("--accept-lang=%s" % _chain)
+        args.append("--fingerprint-accept-lang=%s" % _chain)
     if extension_paths:
         paths = extension_paths if isinstance(extension_paths, (list, tuple)) else [extension_paths]
         joined = ",".join(paths)
