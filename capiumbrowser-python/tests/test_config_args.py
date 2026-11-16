@@ -15,11 +15,12 @@ def test_seed_and_platform_flags():
 
 
 def test_storage_quota_formula():
-    # 128 + (seed % 8) * 64 GB. seed 12345 % 8 == 1 -> 192; seed 1000 % 8 == 0 -> 128.
+    # Flat 10 GB on every desktop persona (stock-Chrome-coherent; profiles on one disk
+    # share a quota), regardless of seed.
     a1 = config.get_default_stealth_args(seed=12345, platform="linux", screen=None)
-    assert "--fingerprint-storage-quota=192" in a1
+    assert "--fingerprint-storage-quota=10" in a1
     a2 = config.get_default_stealth_args(seed=1000, platform="linux", screen=None)
-    assert "--fingerprint-storage-quota=128" in a2
+    assert "--fingerprint-storage-quota=10" in a2
 
 
 def test_windows_gets_font_metrics_others_do_not():
