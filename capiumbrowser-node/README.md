@@ -712,7 +712,7 @@ launches **headed**, which reads cleaner than headless.
 The SDK auto-detects your host and downloads the matching tag; macOS Intel and Windows ARM are **not**
 published and throw a clear error.
 <!-- capium:release-line -->
-The **1.4.0** release ships Chromium **158.0.8127.37** on Windows x64, macOS arm64 and **158.0.8127.36** on Linux x64 (packaging revision **1**). Browser downloads require a valid license. Linux arm64 remains declared but unpublished.
+The **1.4.1** release ships Chromium **158.0.8127.37** on Windows x64, macOS arm64 and **158.0.8127.36** on Linux x64 (packaging revision **2**). Browser downloads require a valid license. Linux arm64 remains declared but unpublished.
 <!-- /capium:release-line -->
 
 ---
