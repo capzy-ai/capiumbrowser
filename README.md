@@ -162,23 +162,23 @@ header you can verify against the bytes.
 <!-- capium:versions-table -->
 | `<tag>` | `<version>` | `<revision>` |
 | --- | --- | --- |
-| `windows-x64` | `156.0.8078.48` | `5` |
-| `macos-arm64` | `156.0.8078.48` | `5` |
-| `linux-x64` | `156.0.8078.47` | `5` |
+| `windows-x64` | `158.0.8127.37` | `1` |
+| `macos-arm64` | `158.0.8127.37` | `1` |
+| `linux-x64` | `158.0.8127.36` | `1` |
 | `linux-arm64` | *(coming soon)* | |
 
-> `<version>` is the compiled and reported browser version. Reported versions: `156.0.8078.48` (windows-x64, macos-arm64); `156.0.8078.47` (linux-x64) (all built from Chromium engine `156.0.8078.47`), packaging revision `5`, served from `chromium-v<version>.<revision>/`. Linux arm64 is not yet published.
+> `<version>` is the compiled and reported browser version. Reported versions: `158.0.8127.37` (windows-x64, macos-arm64); `158.0.8127.36` (linux-x64) (all built from Chromium engine `158.0.8127.36`), packaging revision `1`, served from `chromium-v<version>.<revision>/`. Linux arm64 is not yet published.
 <!-- /capium:versions-table -->
 
 The current stable version per platform is also in each [release's checksums](https://github.com/capzy-ai/capiumbrowser/releases).
 
-The R2 folder is `chromium-v<version>.<revision>/` — the packaging **revision** is always a dotted suffix starting at `.1` (e.g. `chromium-v156.0.8078.48.1/`; a same-engine re-spin is `.2`, `.3`, …). The revision only names our artifact — the browser still reports its real Chrome `<version>`. Folders are immutable, so a re-spin never overwrites the artifact an older pinned SDK keeps fetching. The SDK picks the right folder automatically; for a raw download, read `<version>` and `<revision>` from the table (or the published `channels.json`) and build the folder as shown below.
+The R2 folder is `chromium-v<version>.<revision>/` — the packaging **revision** is always a dotted suffix starting at `.1` (e.g. `chromium-v158.0.8127.37.1/`; a same-engine re-spin is `.2`, `.3`, …). The revision only names our artifact — the browser still reports its real Chrome `<version>`. Folders are immutable, so a re-spin never overwrites the artifact an older pinned SDK keeps fetching. The SDK picks the right folder automatically; for a raw download, read `<version>` and `<revision>` from the table (or the published `channels.json`) and build the folder as shown below.
 
 ### curl (bash)
 
 ```bash
 KEY="cap_your_key_here"
-VERSION="156.0.8078.48"                  # build/artifact version -- see the table above (Linux x64 uses .47)
+VERSION="158.0.8127.37"                  # build/artifact version -- see the table above (Linux x64 uses .36)
 REVISION="4"                             # packaging revision (dotted suffix, starts at 1)
 TAG="windows-x64"                        # windows-x64 | macos-arm64 | linux-x64 | linux-arm64
 REQ_PATH="/download/distro/chromium-v${VERSION}.${REVISION}/capiumbrowser-${TAG}.tar.gz"
@@ -206,7 +206,7 @@ const { pipeline } = require('stream/promises');
 const { Readable } = require('stream');
 
 const KEY = process.env.CAPIUM_LICENSE_KEY;
-const VERSION = '156.0.8078.48', REVISION = '4', TAG = 'windows-x64';  // Linux x64 uses 156.0.8078.47
+const VERSION = '158.0.8127.37', REVISION = '1', TAG = 'windows-x64';  // Linux x64 uses 158.0.8127.36
 const path = `/download/distro/chromium-v${VERSION}.${REVISION}/capiumbrowser-${TAG}.tar.gz`;
 
 const ts = String(Math.floor(Date.now() / 1000));
@@ -229,7 +229,7 @@ await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`capiumbrowser-$
 import hashlib, hmac, time, urllib.request
 
 KEY = "cap_your_key_here"
-VERSION, REVISION, TAG = "156.0.8078.48", "4", "windows-x64"  # Linux x64 uses 156.0.8078.47
+VERSION, REVISION, TAG = "158.0.8127.37", "1", "windows-x64"  # Linux x64 uses 158.0.8127.36
 path = f"/download/distro/chromium-v{VERSION}.{REVISION}/capiumbrowser-{TAG}.tar.gz"
 
 ts = str(int(time.time()))
@@ -692,7 +692,7 @@ launch(seed=200123, args=[
 | `--fingerprint-hardware-concurrency=<n>` | `navigator.hardwareConcurrency` (CPU cores). |
 | `--fingerprint-screen-width=<n>` / `--fingerprint-screen-height=<n>` | `screen.width` / `screen.height`. |
 | `--fingerprint-device-scale-factor=<f>` | `devicePixelRatio`. |
-| `--fingerprint-storage-quota=<GB>` | `navigator.storage.estimate().quota` in **gigabytes** (also affects incognito-from-quota checks). Auto-set per-seed by the SDK (128–576 GB) so the real host/container disk never leaks — including on Windows, where no wrapper runs. |
+| `--fingerprint-storage-quota=<GB>` | `navigator.storage.estimate().quota` in **gigabytes** (also affects incognito-from-quota checks). Auto-set to 10 GB by the SDK (stock-Chrome-coherent) so the real host/container disk never leaks — including on Windows, where no wrapper runs. |
 
 **Rendering & noise**
 
@@ -942,7 +942,7 @@ launches **headed**, which reads cleaner than headless.
 The SDK auto-detects your host and downloads the matching tag; macOS Intel and Windows ARM are **not**
 published and raise a clear error.
 <!-- capium:release-line -->
-The **1.3.4** release ships Chromium **156.0.8078.48** on Windows x64, macOS arm64 and **156.0.8078.47** on Linux x64 (packaging revision **5**). Browser downloads require a valid license. Linux arm64 remains declared but unpublished.
+The **1.4.0** release ships Chromium **158.0.8127.37** on Windows x64, macOS arm64 and **158.0.8127.36** on Linux x64 (packaging revision **1**). Browser downloads require a valid license. Linux arm64 remains declared but unpublished.
 <!-- /capium:release-line -->
 
 ---

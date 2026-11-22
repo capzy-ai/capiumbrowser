@@ -77,3 +77,45 @@ def test_chrome154_override_row_is_available_on_both_native_paths():
     metadata = os.path.join(_REPO, 'src', 'third_party', 'blink', 'common', 'user_agent', 'user_agent_metadata.cc')
     for path in (_UAUTILS, metadata):
         assert '#include "third_party/blink/common/user_agent/capium_chrome_versions.inc"' in _read(path)
+
+
+def test_mobile_table_present_and_current_major_has_real_build():
+    """Android/iOS run a distinct patch cadence from desktop (e.g. 158: desktop win .37 vs
+    Android .43 vs iOS .35), so a mobile persona must report its OWN Stable build, never the
+    desktop column. The current engine major MUST carry a kStableMobile row; the resolver only
+    falls back to the desktop win build when the row is absent."""
+    fp = _read(_FP_DATA)
+    major = _major(_const(fp, "kChromeVersionWindows"))
+    inc = _read(_INC)
+    assert "kStableMobile[]" in inc, "kStableMobile table missing"
+    mobile = inc[inc.index("kStableMobile"):]
+    row = re.search(rf'\{{\s*"{major}"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*\}}', mobile)
+    assert row, f"kStableMobile row for current major {major} not found"
+    andr, ios = row.groups()
+    assert _major(andr) == major and _major(ios) == major, \
+        f"mobile build majors disagree with engine: android={andr} ios={ios} (major {major})"
+    # each must be a real published build (four components, not a reduced X.0.0.0)
+    for b in (andr, ios):
+        parts = b.split(".")
+        assert len(parts) == 4 and parts[1:] != ["0", "0", "0"], f"not a real published build: {b}"
+
+
+def test_157_and_158_desktop_rows_present_with_real_builds():
+    """157 (spoofable historical) + 158 (158-engine target) rows carry the real Google
+    VersionHistory per-platform builds, so UA string and UA-CH never disagree on those majors."""
+    inc = _read(_INC)
+    want = {
+        "158": ("158.0.8127.37", "158.0.8127.37", "158.0.8127.36"),
+        "157": ("157.0.8103.81", "157.0.8103.81", "157.0.8103.78"),
+    }
+    for mj, exp in want.items():
+        row = re.search(rf'\{{\s*"{mj}"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*\}}', inc)
+        assert row and row.groups() == exp, \
+            f"kStable[{mj}] {row.groups() if row else None} != {exp}"
+    # and their mobile rows exist too (Android/iOS real builds)
+    mobile = inc[inc.index("kStableMobile"):]
+    for mj, exp in {"158": ("158.0.8127.43", "158.0.8127.35"),
+                    "157": ("157.0.8103.80", "157.0.8103.37")}.items():
+        row = re.search(rf'\{{\s*"{mj}"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*\}}', mobile)
+        assert row and row.groups() == exp, \
+            f"kStableMobile[{mj}] {row.groups() if row else None} != {exp}"

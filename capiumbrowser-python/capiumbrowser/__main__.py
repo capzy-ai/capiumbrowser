@@ -255,7 +255,9 @@ def _cmd_install(args):
     from .licensing import download as _download, client as _license
     key, _ = _license.effective()
     print("downloading the capium browser binary ...")
-    print("installed:", _download.ensure_binary(license_key=key))
+    # force=True: `install` always re-downloads + re-extracts, repairing a truncated/partial
+    # install instead of no-opping when the version marker happens to match.
+    print("installed:", _download.ensure_binary(license_key=key, force=True))
     return 0
 
 

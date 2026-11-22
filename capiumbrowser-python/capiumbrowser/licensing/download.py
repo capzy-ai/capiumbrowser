@@ -173,6 +173,28 @@ def _installed_version(binpath):
         return None
 
 
+def _payload_looks_complete(binpath):
+    """Best-effort: does this install carry Chrome's resource payload, or just the launcher?
+
+    A truncated/partial extract (the launcher present but the .pak / ICU / V8-snapshot resources
+    missing) still carries a matching `.capium-build` marker, so the version check alone would
+    reuse a broken install and Chrome dies with 'side-by-side configuration is incorrect'. This
+    returns False ONLY when we can positively tell the resource payload is missing; when unsure
+    (unusual layout) it returns True so we never re-download in a loop."""
+    d = os.path.dirname(binpath)
+    if _platform.system() == "Darwin":
+        return True  # app-bundle layout varies; trust the marker on macOS
+    # Windows/Linux: Chrome's resources sit next to the engine. A dir with the launcher but no
+    # icudtl.dat and no *.pak is a broken extract. Resource paks live either beside the launcher
+    # (resources.pak, chrome_100_percent.pak) or under locales/ (en-US.pak, ...) -- a .pak in
+    # EITHER place proves the payload came through, so check both before deciding it is truncated.
+    if os.path.isfile(os.path.join(d, "icudtl.dat")):
+        return True
+    if glob.glob(os.path.join(d, "*.pak")):
+        return True
+    return bool(glob.glob(os.path.join(d, "locales", "*.pak")))
+
+
 def installed_version(binpath=None):
     """Public: the stamped build version of the installed capium binary, or None if it isn't
     installed / wasn't version-stamped. `binpath` defaults to the discovered binary."""
@@ -278,9 +300,10 @@ def _download(url, headers, dest, version, tag):
     return got
 
 
-def ensure_binary(version=None, license_key=None, server=None):
+def ensure_binary(version=None, license_key=None, server=None, force=False):
     """Return the path to the capium launch target, downloading + extracting the per-platform
-    build if it isn't already present.
+    build if it isn't already present. `force=True` re-downloads even when the marker already
+    matches (used by `python -m capiumbrowser install` to repair a broken install).
 
     Raises:
         CapiumError          -- unsupported platform, version/platform not published (404), or a
@@ -324,12 +347,17 @@ def ensure_binary(version=None, license_key=None, server=None):
     # lives in the canonical root (~/.capium or CAPIUM_HOME). A different build -- or a same-build
     # binary sitting in a LEGACY location (a pre-1.1.3 site-packages install) -- falls through so
     # we (re)install into ~/.capium, migrating everything under one folder next to the license.
-    try:
-        existing = config.find_binary()
-        if _installed_version(existing) == bid and _in_root(existing, _dest_root()):
-            return existing
-    except FileNotFoundError:
-        pass
+    # force=True (explicit `install`) always re-downloads. Otherwise reuse only a cached binary
+    # that is this exact build, lives in the canonical root, AND still has its resource payload
+    # -- a truncated install (launcher only, .pak/ICU gone) must be re-downloaded, not trusted.
+    if not force:
+        try:
+            existing = config.find_binary()
+            if (_installed_version(existing) == bid and _in_root(existing, _dest_root())
+                    and _payload_looks_complete(existing)):
+                return existing
+        except FileNotFoundError:
+            pass
 
     direct = os.environ.get("CAPIUM_DOWNLOAD_URL")
     if direct:

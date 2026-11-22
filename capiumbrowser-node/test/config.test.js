@@ -18,11 +18,12 @@ test('seed and platform flags', () => {
 });
 
 test('storage quota formula', () => {
-  // 128 + (seed % 8) * 64 GB. seed 12345 % 8 == 1 -> 192; seed 1000 % 8 == 0 -> 128.
+  // Flat 10 GB on every desktop persona (stock-Chrome-coherent; profiles on one disk
+  // share a quota), regardless of seed.
   const a1 = config.getDefaultStealthArgs(12345, 'linux', null);
-  assert.ok(a1.includes('--fingerprint-storage-quota=192'));
+  assert.ok(a1.includes('--fingerprint-storage-quota=10'));
   const a2 = config.getDefaultStealthArgs(1000, 'linux', null);
-  assert.ok(a2.includes('--fingerprint-storage-quota=128'));
+  assert.ok(a2.includes('--fingerprint-storage-quota=10'));
 });
 
 test('windows gets font metrics, others do not', () => {
