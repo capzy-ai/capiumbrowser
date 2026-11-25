@@ -158,21 +158,25 @@ def get_default_stealth_args(seed=None, platform="windows", screen=None, mobile_
         "primaryPointerType=4,availablePointerTypes=4",
         "--no-first-run",
         "--no-default-browser-check",
-        # CDP stealth defaults (engine 156): inspector-frame scrub ON (hides the
+        # CDP stealth defaults (engine 158): inspector-frame scrub ON (hides the
         # UtilityScript/eval source-URL leak from Error.stack -- Patchright-equivalent,
-        # does not trip anti-detect ML); console mask OFF (ON makes developer_tools=false
-        # -> FPJS anti_detect/tampering) -- opt in with --capium-enable-console-mask; main-
-        # world evaluate isolation OFF (ON breaks page-global access for solvers) -- opt in
-        # with --capium-isolate-cdp-eval. --capium-disable-cdp-stealth turns everything off.
-        # See docs/STEALTH-FLAGS.md.
+        # does not trip anti-detect ML); console mask ON (closes the Runtime.enable
+        # console side-channel PerimeterX/HUMAN key on, but still performs the builtin
+        # Error.stack read a real inspector makes -- FPJS's developer_tools probe; a
+        # fully silent mask scored as anti-detect, ml 0.998 on 158) -- opt out with
+        # --disable-console-mask, fully-silent with --capium-console-mask-strict; lazy
+        # error previews OFF (would silence that probe) -- opt in with
+        # --capium-lazy-error-previews; main-world evaluate isolation OFF (ON breaks
+        # page-global access for solvers) -- opt in with --capium-isolate-cdp-eval.
+        # --capium-disable-cdp-stealth turns everything off. See docs/STEALTH-FLAGS.md.
     ]
-    # Per-profile render farbling is ON (the engine default) so canvas/WebGL/audio are unique AND
-    # stable per seed. Without it, every profile on a host renders identically -- a cross-instance
-    # correlation surface a detector clusters over time. The engine farbles deterministically per
-    # (seed,x,y) and skips low-entropy images (so trivial hashes aren't perturbed). Combined with
-    # the per-machine seed above, each machine gets a distinct, consistent render fingerprint.
-    # Opt out with CAPIUM_EXTRA_ARGS=--fingerprint-noise=false (e.g. when byte-exact canvas is
-    # required). Previously this forced =false, collapsing all profiles onto the host's raw render.
+    # Per-profile canvas/WebGL/audio farbling is ON for every seeded persona (noise v2):
+    # deterministic per seed, unique across seeds, and shaped to pass the detector checks
+    # (read-twice == Chrome's own +-1 rounding, decode(toDataURL) == getImageData ==
+    # readPixels, flat fills exact). Live: BrowserScan 100%, FPJS Pro tampering 0 with
+    # per-seed canvas/WebGL/visitor hashes. Opt out per launch with
+    # CAPIUM_EXTRA_ARGS=--disable-spoofing=canvas (stock readbacks, identical to real
+    # Chrome on the host GPU) or --fingerprint-noise=false (audio too).
     # A Windows persona's font metrics must match real Windows (needs Windows fonts
     # present on the host); harmless elsewhere, so gate it to the windows persona.
     if platform == "windows":

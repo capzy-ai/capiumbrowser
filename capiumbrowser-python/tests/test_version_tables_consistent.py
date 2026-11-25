@@ -105,7 +105,7 @@ def test_157_and_158_desktop_rows_present_with_real_builds():
     VersionHistory per-platform builds, so UA string and UA-CH never disagree on those majors."""
     inc = _read(_INC)
     want = {
-        "158": ("158.0.8127.37", "158.0.8127.37", "158.0.8127.36"),
+        "158": ("158.0.8127.89", "158.0.8127.89", "158.0.8127.88"),  # current Stable (chromiumdash 2026-11-23); 1.4.2+
         "157": ("157.0.8103.81", "157.0.8103.81", "157.0.8103.78"),
     }
     for mj, exp in want.items():
@@ -114,7 +114,7 @@ def test_157_and_158_desktop_rows_present_with_real_builds():
             f"kStable[{mj}] {row.groups() if row else None} != {exp}"
     # and their mobile rows exist too (Android/iOS real builds)
     mobile = inc[inc.index("kStableMobile"):]
-    for mj, exp in {"158": ("158.0.8127.43", "158.0.8127.35"),
+    for mj, exp in {"158": ("158.0.8127.42", "158.0.8127.35"),  # Android .42 since 53a7b42 (real Chrome 158 stable)
                     "157": ("157.0.8103.80", "157.0.8103.37")}.items():
         row = re.search(rf'\{{\s*"{mj}"\s*,\s*"([\d.]+)"\s*,\s*"([\d.]+)"\s*\}}', mobile)
         assert row and row.groups() == exp, \

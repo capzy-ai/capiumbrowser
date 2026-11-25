@@ -60,6 +60,26 @@ test('extract: FLAT archive (the Windows tar layout) is wrapped into root/<subdi
   assert.ok(!fs.readdirSync(root).some((n) => n.startsWith('.capium-extract-')));
 });
 
+test('extract: re-install over an existing distro replaces it flat, never nested', async () => {
+  // Regression: an engine-build upgrade must not bury the new payload under a leftover dir.
+  const root = tmpdir();
+  const dst = path.join(root, 'capiumbrowser-windows-x64'); // single-top target name
+  fs.mkdirSync(dst, { recursive: true });
+  fs.writeFileSync(path.join(dst, 'chrome.exe'), 'STALE-OLD');      // stale binary at resolved path
+  fs.writeFileSync(path.join(dst, 'stale-only.txt'), 'remove me');  // stale file with no replacement
+  const archive = await makeTarGz({
+    'capiumbrowser-windows-x64/chrome.exe': 'NEW-BUILD',
+    'capiumbrowser-windows-x64/icudtl.dat': 'icu',
+    'capiumbrowser-windows-x64/locales/en-US.pak': 'pak',
+  });
+  await download._extract(archive, root, 'capium-158-windows-x64');
+  assert.equal(fs.readFileSync(path.join(dst, 'chrome.exe'), 'utf8'), 'NEW-BUILD', 'new binary replaces stale');
+  assert.ok(fs.existsSync(path.join(dst, 'icudtl.dat')), 'ICU present at the top level');
+  assert.ok(!fs.existsSync(path.join(dst, 'capiumbrowser-windows-x64')), 'new payload is NOT nested under a leftover');
+  assert.ok(!fs.existsSync(path.join(dst, 'stale-only.txt')), 'stale-only file is gone');
+  assert.ok(!fs.readdirSync(root).some((n) => n.includes('.stale-')), 'trash dir cleaned up');
+});
+
 test('version stamp roundtrip and marker fallback', () => {
   const dir = tmpdir();
   const bin = path.join(dir, 'capium');

@@ -150,21 +150,58 @@ async function extract(archivePath, root, subdir) {
       await tar.x({ file: archivePath, cwd: scratch });
     }
     const entries = fs.readdirSync(scratch);
+    let payload;
+    let target;
     if (entries.length === 1 &&
         fs.statSync(path.join(scratch, entries[0])).isDirectory()) {
       // single top-level dir: the archive carries its own capium-*/ folder
-      const target = path.join(root, entries[0]);
-      fs.rmSync(target, { recursive: true, force: true });
-      fs.renameSync(path.join(scratch, entries[0]), target);
-      return target;
+      payload = path.join(scratch, entries[0]);
+      target = path.join(root, entries[0]);
+    } else {
+      // flat archive: wrap it so discovery (capium-*/ glob) still finds it
+      payload = scratch;
+      target = path.join(root, subdir);
     }
-    // flat archive: wrap it so discovery (capium-*/ glob) still finds it
-    const target = path.join(root, subdir);
-    fs.rmSync(target, { recursive: true, force: true });
-    fs.renameSync(scratch, target);
+    swapDirIntoPlace(payload, target);
     return target;
   } finally {
-    fs.rmSync(scratch, { recursive: true, force: true });
+    try { fs.rmSync(scratch, { recursive: true, force: true }); } catch { /* already moved */ }
+  }
+}
+
+/**
+ * Make `dst` become `src` (a freshly-extracted payload dir), replacing any existing `dst`
+ * WITHOUT ever nesting the new payload inside leftover files.
+ *
+ * Guards the Windows engine-build-upgrade failure: the previous build's chrome.exe / *.dll still
+ * hold handles (image loader / antivirus / a lingering process), so deleting `dst` removes the
+ * unlocked data files (icudtl.dat, *.pak, snapshots) but leaves the locked binaries -- and moving
+ * the new payload onto that leftover either throws or buries the real build one level down, which
+ * aborts at ICU init. A directory RENAME succeeds on Windows even with open files inside (unlike
+ * delete), so move a stubborn `dst` aside to free the path, then rename the new payload in.
+ */
+function swapDirIntoPlace(src, dst) {
+  if (fs.existsSync(dst)) {
+    try { fs.rmSync(dst, { recursive: true, force: true }); } catch { /* locked */ }
+  }
+  if (fs.existsSync(dst)) {
+    const trash = `${dst}.stale-${crypto.randomBytes(4).toString('hex')}`;
+    try {
+      fs.renameSync(dst, trash);
+      try { fs.rmSync(trash, { recursive: true, force: true }); } catch { /* handles still open */ }
+    } catch { /* fall through to merge */ }
+  }
+  if (!fs.existsSync(dst)) {
+    fs.renameSync(src, dst);
+    return;
+  }
+  // Last resort (rename-aside also failed): merge contents so the payload is at least FLAT at
+  // `dst`, never nested. Files we can't overwrite (still-locked) stay stale -- a rare case the
+  // rename-aside path above already handles for the normal loaded-image lock.
+  fs.mkdirSync(dst, { recursive: true });
+  for (const name of fs.readdirSync(src)) {
+    try { fs.rmSync(path.join(dst, name), { recursive: true, force: true }); } catch { /* ignore */ }
+    try { fs.renameSync(path.join(src, name), path.join(dst, name)); } catch { /* ignore */ }
   }
 }
 

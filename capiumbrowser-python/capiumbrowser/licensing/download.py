@@ -110,18 +110,68 @@ def _dest_root():
     return os.environ.get("CAPIUM_HOME") or os.path.join(os.path.expanduser("~"), ".capium")
 
 
+def _swap_dir_into_place(src, dst):
+    """Make `dst` become `src` (a freshly-extracted payload dir), replacing any existing `dst`
+    WITHOUT ever nesting the new payload inside leftover files.
+
+    The subtle failure this guards against (it broke a Windows engine-build upgrade): the
+    previous build's `chrome.exe` / `*.dll` still hold handles (the image loader, antivirus, or
+    a lingering process), so `shutil.rmtree(dst, ignore_errors=True)` silently removes the
+    *unlocked* data files (icudtl.dat, *.pak, snapshots) but leaves the locked binaries -- and
+    then `shutil.move(src, dst)` drops the whole new payload INSIDE the leftover `dst/` instead
+    of replacing it. The result is a half-stale top level (old chrome.exe, no ICU/paks) with the
+    real build buried one level down, which aborts at ICU init.
+
+    A directory *rename* succeeds on Windows even when files inside are open (unlike delete), so
+    we move a stubborn `dst` ASIDE to a trash name to free the path, then rename the new payload
+    into it atomically (same filesystem: `src` is a scratch dir under the same root). The stale
+    dir is cleaned best-effort; its locked files disappear once their handles close."""
+    if os.path.exists(dst):
+        shutil.rmtree(dst, ignore_errors=True)
+    if os.path.exists(dst):
+        # Couldn't delete it (locked). Rename it aside so `dst` is free and we never nest under it.
+        trash = "%s.stale-%s" % (dst, os.urandom(4).hex())
+        try:
+            os.rename(dst, trash)
+            shutil.rmtree(trash, ignore_errors=True)
+        except OSError:
+            pass
+    if not os.path.exists(dst):
+        shutil.move(src, dst)
+        return
+    # Last resort (rename-aside also failed): merge contents in so the payload is at least FLAT
+    # at `dst`, never nested. Files we can't overwrite (still-locked) stay stale, but that is the
+    # rare pathological case; the rename-aside path above handles the normal loaded-image lock.
+    os.makedirs(dst, exist_ok=True)
+    for name in os.listdir(src):
+        s = os.path.join(src, name)
+        d = os.path.join(dst, name)
+        if os.path.isdir(d) and not os.path.islink(d):
+            shutil.rmtree(d, ignore_errors=True)
+        else:
+            try:
+                os.remove(d)
+            except OSError:
+                pass
+        try:
+            shutil.move(s, d)
+        except OSError:
+            pass
+
+
 def _extract(path, root, subdir):
     """Extract a distro archive (gzip/zip/tar, sniffed by magic) and normalize it to a single
     `root/<subdir>` directory named `capium-<major>-<tag>`, whatever the archive's own layout.
 
     Returns that directory. Every archive shape lands the same way, so discovery (which globs
     `capium-*`) and `_remove_installs` work identically on all platforms:
-      * FLAT archive (the Windows tar: `./chrome.exe`, `./locales/` at the root, no wrapper dir)
+      * FLAT archive (`./chrome.exe`, `./locales/` at the root, no wrapper dir)
         -> its contents become `root/<subdir>/...`.
-      * SINGLE-TOP archive (the Linux/macOS tar: everything under `capiumbrowser-<tag>/`)
-        -> that inner directory is moved to `root/<subdir>`.
+      * SINGLE-TOP archive (everything under `capiumbrowser-<tag>/`, which the Windows/Linux/mac
+        tars all use) -> that inner directory becomes `root/<subdir>`.
     Extraction goes to a scratch dir first so the shape is decided from what actually unpacked
-    (robust against `./`-prefixed flat tars, which name-based heuristics misread as single-top)."""
+    (robust against `./`-prefixed flat tars, which name-based heuristics misread as single-top),
+    then `_swap_dir_into_place` installs it without ever nesting under a leftover dir."""
     with open(path, "rb") as f:
         magic = f.read(4)
     scratch = tempfile.mkdtemp(dir=root, prefix=".capium-extract-")
@@ -137,14 +187,13 @@ def _extract(path, root, subdir):
             with tarfile.open(path, "r:*") as t:
                 t.extractall(scratch)
         entries = [e for e in os.listdir(scratch) if e not in (".", "..")]
-        if os.path.exists(target):
-            shutil.rmtree(target, ignore_errors=True)
         if len(entries) == 1 and os.path.isdir(os.path.join(scratch, entries[0])):
             # single-top: the archive carries its own wrapper dir -> that dir IS the distro
-            shutil.move(os.path.join(scratch, entries[0]), target)
+            payload = os.path.join(scratch, entries[0])
         else:
             # flat: the scratch dir itself holds the distro files
-            shutil.move(scratch, target)
+            payload = scratch
+        _swap_dir_into_place(payload, target)
     finally:
         if os.path.isdir(scratch):
             shutil.rmtree(scratch, ignore_errors=True)
