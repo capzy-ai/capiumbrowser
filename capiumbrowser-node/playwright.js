@@ -226,7 +226,7 @@ async function requireMobileEngine(context, mobileDevice = null, seed = 0, platf
     await page.route('**/*', route => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html>' }));
     await page.goto('https://capium-mobile-preview.invalid/', { waitUntil: 'domcontentloaded' });
     const supported = await page.evaluate(mobile.engineProbe, expected);
-    if (!supported) throw new Error('This binary does not support the requested mobile profile/device; use Capium 1.2.1 revision 2 or later');
+    if (!supported) throw new Error('This binary does not expose the requested mobile profile/device correctly (the iPhone/Android API-surface probe failed); update capiumbrowser so it downloads a current browser build');
   } finally { await page.close(); }
 }
 

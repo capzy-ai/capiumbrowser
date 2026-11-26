@@ -305,7 +305,7 @@ def _require_mobile_engine(context, mobile_device=None, seed=0, platform="androi
         page.goto("https://capium-mobile-preview.invalid/", wait_until="domcontentloaded")
         supported = page.evaluate(engine_probe(platform), expected)
         if not supported:
-            raise ValueError("This binary does not support the requested mobile profile/device; use Capium 1.2.1 revision 2 or later")
+            raise ValueError("This binary does not expose the requested mobile profile/device correctly (the iPhone/Android API-surface probe failed); update capiumbrowser so it downloads a current browser build")
     finally:
         page.close()
 
